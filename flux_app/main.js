@@ -182,6 +182,7 @@ function generateQRSVG(seed) {
 // LOGIN / REGISTER SCREEN
 // ============================================================
 function renderAuthPage() {
+  hibernateEverything(); // Ensure P5 is OFF
   document.querySelector('#app').innerHTML = `
     <div id="app-container">
       <h1 class="logo">FLUX</h1>
@@ -1062,7 +1063,6 @@ function renderTimeSlots(container) {
 
   container.innerHTML = `
     <h2 style="color: #00ff66;">Choose Your Window</h2>
-    <p style="color: var(--text-muted); margin: 0; font-size: 0.85rem; line-height: 1.4; margin-bottom: 2rem;">Select when you'll arrive at the stadium. To prevent crowds, each window has a strict entry limit.</p>
     
     <div class="promo-card" id="maps-engine-card" style="border-color: #00ff66; background: rgba(0, 255, 102, 0.05); padding: 2rem; margin-bottom: 2.5rem;">
         <h3 style="color: #00ff66; margin: 0 0 0.8rem 0; font-size: 1.2rem; text-transform: uppercase;">Live Proximity Protocol</h3>

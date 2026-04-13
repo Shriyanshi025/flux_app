@@ -57,7 +57,7 @@ h1.logo {
   font-weight: 900;
   letter-spacing: -3px;
   text-align: center;
-  margin-top: -2rem; /* Pull up slightly for perfect visual center */
+  margin-top: 5rem; /* Standardized for desktop visibility */
   margin-bottom: 2rem;
   color: #fff;
   text-transform: uppercase;
@@ -349,15 +349,12 @@ input:focus {
 .main-feed {
   flex: 1;
   overflow-y: auto;
-  padding: 0 var(--screen-pad-x) 1rem var(--screen-pad-x);
+  padding: 5rem var(--screen-pad-x) 120px var(--screen-pad-x); /* Padded for top/bottom nav */
   display: flex;
   flex-direction: column;
-  gap: 1.5rem; /* Standard gap for entry/others */
-
-
-
-  padding-bottom: 80px; 
-  scrollbar-width: none;
+  gap: 1.5rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.1) transparent;
 }
 
 #home-feed.main-feed {
@@ -1083,21 +1080,43 @@ input:focus {
 
 /* === THE CURVED DECK (Profile & Menu Overlays) === */
 .curved-deck {
-  background: rgba(15, 15, 20, 0.7);
-  backdrop-filter: blur(40px);
-  -webkit-backdrop-filter: blur(40px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(10, 10, 12, 0.9); /* Higher opacity for isolation */
+  backdrop-filter: blur(60px);
+  -webkit-backdrop-filter: blur(60px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 40px;
   padding: 2.5rem;
   width: 100%;
-  max-width: 450px;
-  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+  max-width: 500px; /* Slightly wider for desktop */
+  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.8);
   display: flex;
   flex-direction: column;
   align-items: center;
   position: relative;
   overflow: hidden;
+  z-index: 9999; /* Priority atop all layers */
   animation: deckSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* === THE 2x2 ENTRY GRID === */
+.entry-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+/* Auth isolation */
+#app-container .bottom-nav {
+  display: none !important;
+}
+
+#flux-bg-canvas {
+  display: block;
+}
+
+#app-container ~ #flux-bg-canvas {
+  display: none !important; /* Hide background when login is visible */
 }
 
 @keyframes deckSlideUp {
