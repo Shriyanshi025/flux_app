@@ -439,6 +439,15 @@ function bindHomeEvents() {
   document.getElementById('header-logo')?.addEventListener('click', () => {
     renderHomePage();
   });
+
+  // Hamburger & Profile Bindings
+  document.getElementById('nav-menu-btn')?.addEventListener('click', () => {
+    toggleSideNav(true);
+  });
+  
+  document.getElementById('nav-avatar')?.addEventListener('click', () => {
+    renderProfilePage();
+  });
 }
 
 function renderFlashMarket() {
@@ -453,7 +462,7 @@ function renderFlashMarket() {
           </button>
           <div class="logo-small">MARKET</div>
         </div>
-        <div class="avatar">
+        <div class="avatar" style="cursor: pointer;" onclick="renderProfilePage()">
            ${getAvatarHTML(parseInt(localStorage.getItem('flux_avatar_idx') || 0), 28)}
         </div>
       </div>
@@ -471,6 +480,7 @@ function renderFlashMarket() {
   `;
 
   document.getElementById('market-back-btn').addEventListener('click', renderHomePage);
+  document.getElementById('market-avatar')?.addEventListener('click', renderProfilePage);
   updateMarketDisplay();
 }
 
@@ -937,7 +947,7 @@ function renderEntryModule() {
           </button>
           <div class="logo-small">ENTRY</div>
         </div>
-        <div class="avatar">
+        <div class="avatar" style="cursor: pointer;" onclick="renderProfilePage()">
            ${getAvatarHTML(parseInt(localStorage.getItem('flux_avatar_idx') || 0), 28)}
         </div>
       </div>
@@ -950,6 +960,7 @@ function renderEntryModule() {
   `;
 
   document.getElementById('entry-back-btn').addEventListener('click', renderHomePage);
+  document.getElementById('entry-avatar')?.addEventListener('click', renderProfilePage);
   const entryFeed = document.getElementById('entry-view');
 
   if (!mockEntryState.bookedSlot) {
