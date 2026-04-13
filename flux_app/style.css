@@ -13,7 +13,7 @@
   --font-primary: 'Work Sans', sans-serif;
   --font-logo: 'Outfit', sans-serif;
   --screen-pad-x: clamp(1rem, 4.5vw, 1.5rem);
-  --max-app-width: 1200px;
+  --max-app-width: 100%;
   --auth-width: 450px;
 }
 
