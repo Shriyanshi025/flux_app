@@ -420,28 +420,12 @@ function renderHomeHTML(appEl) {
         <div id="end-sentinel" style="height: 1px; width: 100%; margin-top: 10vh;"></div>
       </div>
 
-      <!-- Smart Copyright (Fixed above Nav) -->
-      <div id="copyright-notice">© 2026 FLUX Crowd Orchestration</div>
-
-      <!-- Sticky Bottom Nav -->
-      <div class="bottom-nav">
-        <div class="nav-item" data-color="var(--accent)" data-index="0" id="nav-home">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-          Entry
-        </div>
-        <div class="nav-item" data-color="#00ffcc" data-index="1" id="nav-break">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-          Break
-        </div>
-        <div class="nav-item" data-color="#ff003c" data-index="2" id="nav-exit">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-          Exit
-        </div>
-      </div>
+      ${getBottomNavHTML()}
     </div>
   `;
 
   bindHomeEvents();
+  bindUniversalNav();
   renderSideNav(); 
   initSmartHomeLogic(); 
   
@@ -513,11 +497,14 @@ function renderFlashMarket() {
       <div class="market-feed" id="market-feed">
         <!-- stands injected here -->
       </div>
+      ${getBottomNavHTML()}
     </div>
   `;
 
   document.getElementById('market-back-btn').addEventListener('click', renderHomePage);
   document.getElementById('market-avatar')?.addEventListener('click', renderProfilePage);
+  bindUniversalNav(); // Link universal navigation
+  setNavActive(1);    // Mark break as active
   
   // Reset-on-Visit: Every visit grants 2 more notifications
   flashNotifTracker.extraCount = 2;
@@ -998,12 +985,15 @@ function renderEntryModule() {
         <div class="entry-grid" id="entry-grid-target">
            <!-- slots injected here -->
         </div>
-      </div>
+      ${getBottomNavHTML()}
     </div>
   `;
 
   document.getElementById('entry-back-btn').addEventListener('click', renderHomePage);
   document.getElementById('entry-avatar')?.addEventListener('click', renderProfilePage);
+  bindUniversalNav(); // Link universal navigation
+  setNavActive(0);    // Mark entry as active
+  
   const entryFeed = document.getElementById('entry-view');
 
   if (!mockEntryState.bookedSlot) {
@@ -1384,4 +1374,47 @@ function showAvatarPicker(currentIdx, onSelect) {
   });
 
   document.getElementById('close-picker').addEventListener('click', () => overlay.remove());
+}
+
+function getBottomNavHTML() {
+  return `
+    <!-- Smart Copyright (Fixed above Nav) -->
+    <div id="copyright-notice">© 2026 FLUX Crowd Orchestration</div>
+
+    <!-- Sticky Bottom Nav -->
+    <div class="bottom-nav">
+      <div class="nav-item" data-color="var(--accent)" data-index="0" id="nav-home">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+        Entry
+      </div>
+      <div class="nav-item" data-color="#00ffcc" data-index="1" id="nav-break">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        Break
+      </div>
+      <div class="nav-item" data-color="#ff003c" data-index="2" id="nav-exit">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Exit
+      </div>
+    </div>
+  `;
+}
+
+function bindUniversalNav() {
+  document.getElementById('nav-home')?.addEventListener('click', () => {
+    setNavActive(0);
+    renderEntryModule();
+  });
+  
+  document.getElementById('nav-break')?.addEventListener('click', () => {
+    setNavActive(1);
+    renderFlashMarket();
+  });
+
+  document.getElementById('nav-exit')?.addEventListener('click', () => {
+    setNavActive(2);
+    // Soft Exit Placeholder
+  });
+
+  // Logo back-to-dashboard shortcut
+  document.getElementById('header-logo')?.addEventListener('click', renderHomePage);
 }
