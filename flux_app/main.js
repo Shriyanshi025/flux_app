@@ -448,8 +448,8 @@ function renderFlashMarket() {
       <!-- Market Header -->
       <div class="top-nav">
         <div style="display: flex; align-items: center; gap: 1rem;">
-          <button id="market-back-btn">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          <button id="market-back-btn" class="nav-back-btn" title="Back to Dashboard">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
           </button>
           <div class="logo-small">MARKET</div>
         </div>
@@ -932,8 +932,8 @@ function renderEntryModule() {
       <!-- Entry Header -->
       <div class="top-nav">
         <div style="display: flex; align-items: center; gap: 1rem;">
-          <button id="entry-back-btn" class="nav-back-btn">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          <button id="entry-back-btn" class="nav-back-btn" title="Back to Dashboard">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
           </button>
           <div class="logo-small">ENTRY</div>
         </div>

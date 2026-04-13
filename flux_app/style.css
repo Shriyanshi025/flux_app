@@ -527,7 +527,7 @@ input:focus {
 
 /* === ENTRY MODULE STYLES === */
 #entry-view {
-  padding: 20px var(--screen-pad-x) 100px;
+  padding: 85px var(--screen-pad-x) 100px;
   max-width: 1200px;
   margin: 0 auto;
   width: 100%;
@@ -1053,15 +1053,32 @@ input:focus {
   margin-bottom: 2rem;
 }
 
-#market-back-btn {
-  background: none;
-  border: none;
+.nav-back-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   color: #fff;
   cursor: pointer;
-  padding: 0.5rem;
-  width: 44px;
-  height: 44px;
+  padding: 0;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.nav-back-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateX(-3px);
+}
+
+.nav-back-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+#market-back-btn, #entry-back-btn {
+  /* Inherit from .nav-back-btn */
 }
