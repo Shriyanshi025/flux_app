@@ -342,6 +342,12 @@ function checkExistingUser() {
   }
 }
 
+function hibernateEverything() {
+  p5Instance?.hibernate();
+  if (marketInterval) clearInterval(marketInterval);
+  marketInterval = null;
+}
+
 function renderHomePage() {
   const hasPlayedDrone = sessionStorage.getItem('flux_drone_played');
   const appEl = document.querySelector('#app');
@@ -349,6 +355,7 @@ function renderHomePage() {
   if (hasPlayedDrone) {
     document.body.classList.add('theme-blue');
     document.body.classList.remove('theme-magenta');
+    p5Instance?.wake(); 
     renderHomeHTML(appEl);
     return;
   }
@@ -370,6 +377,7 @@ function renderHomePage() {
       const drone = document.getElementById('intro-drone');
       if (drone) drone.remove();
       sessionStorage.setItem('flux_drone_played', 'true');
+      p5Instance?.wake(); 
       renderHomeHTML(appEl);
     }, 3000);
   };
@@ -788,7 +796,7 @@ function renderProfileEdit() {
     </div>
 
     <!-- Footer: Confirm/Cancel -->
-    <div style="margin-top: auto; width: 100%; max-width: 400px; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+    <div style="margin-top: 4rem; width: 100%; max-width: 400px; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
        <button id="cancel-edit" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #888; padding: 1rem; border-radius: 12px; cursor: pointer; font-weight:600;">Cancel</button>
        <button id="confirm-edit" style="background: var(--accent); border: none; color: #000; padding: 1rem; border-radius: 12px; cursor: pointer; font-weight:800; box-shadow: 0 0 20px rgba(57,255,20,0.2);">Save Changes</button>
     </div>
@@ -912,40 +920,42 @@ function renderProfilePage() {
 
   const d = document.createElement('div');
   d.id = 'profile-view';
-  d.className = 'profile-overlay animated';
-  d.style = "position:fixed; inset:0; background:var(--bg-core); z-index:1500; padding: 2rem var(--screen-pad-x); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; overflow-y: auto;";
+  d.className = 'profile-overlay animated p5-active';
+  d.style = "position:fixed; inset:0; z-index:1500; padding: 2rem; display: flex; align-items: center; justify-content: center; overflow-y: auto;";
   d.innerHTML = `
-     <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 1.5rem; margin-bottom: 1.5rem;">
-       <!-- Identity Cluster -->
-       <div style="display: flex; align-items: center; gap: 1.2rem;">
-         <div class="avatar" style="width: 60px; height: 60px; background: ${getAvatarTheme(avatarIdx).bg}; border-width: 2.5px;">
-            ${getAvatarHTML(avatarIdx, 30)}
-         </div>
-         <div style="text-align: left;">
-           <h2 style="color: var(--accent); margin: 0; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.8;">Identity Pass</h2>
-           <p style="font-size: 1.4rem; margin: 2px 0 0 0; color: #fff; font-weight: 700; line-height: 1;">${username}</p>
-         </div>
-       </div>
+     <div class="curved-deck">
+        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 1.5rem; margin-bottom: 1.5rem;">
+          <!-- Identity Cluster -->
+          <div style="display: flex; align-items: center; gap: 1.2rem;">
+            <div class="avatar" style="width: 60px; height: 60px; background: ${getAvatarTheme(avatarIdx).bg}; border-width: 2.5px;">
+                ${getAvatarHTML(avatarIdx, 30)}
+            </div>
+            <div style="text-align: left;">
+              <h2 style="color: var(--accent); margin: 0; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.8;">Identity Pass</h2>
+              <p style="font-size: 1.4rem; margin: 2px 0 0 0; color: #fff; font-weight: 700; line-height: 1;">${username}</p>
+            </div>
+          </div>
 
-       <!-- Isolated Management -->
-       <div id="prof-popup-edit" style="background: var(--accent); color: #000; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2.5px solid var(--bg-core); cursor: pointer; box-shadow: 0 4px 15px rgba(0,255,102,0.3); transition: transform 0.2s;" onclick="this.style.transform='scale(0.95)'">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
-       </div>
+          <!-- Isolated Management -->
+          <div id="prof-popup-edit" style="background: var(--accent); color: #000; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2.5px solid var(--bg-core); cursor: pointer; box-shadow: 0 4px 15px rgba(0,255,102,0.3); transition: transform 0.2s;" onclick="this.style.transform='scale(0.95)'">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+          </div>
+        </div>
+
+        <div class="promo-card" id="prof-card-data" style="text-align: left; width: 100%; max-width: 400px; border-color: rgba(255,255,255,0.2); margin-bottom: 2rem; background: rgba(0,0,0,0.3);">
+            <p style="color: #00ffcc; text-transform: uppercase; font-size: 0.8rem; margin:0 0 5px 0;">Trust Level</p>
+            <p style="margin: 0; color: white; font-weight: 700; font-size: 1.1rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 1rem; margin-bottom: 1rem;">Zero-Trust Biometric Secure ✓</p>
+            
+            <p style="color: #00ffcc; text-transform: uppercase; font-size: 0.8rem; margin:0 0 5px 0;">Identity Status</p>
+            <p style="margin: 0; color: white; line-height: 1.4;">Personal information encrypted &amp; stored consistently with Fortress ID protocols.</p>
+            
+            <button id="logout-btn" style="margin-top: 2rem; width: 100%; background: rgba(255, 60, 60, 0.1); border: 1px solid #ff3c3c; color: #ff3c3c; padding: 0.6rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.8rem;">
+              Log Out / Reset Identity
+            </button>
+          </div>
+
+          <button class="btn-primary" id="close-profile" style="width: 100%;">Return to FLUX</button>
      </div>
-
-     <div class="promo-card" id="prof-card-data" style="text-align: left; width: 100%; max-width: 400px; border-color: rgba(255,255,255,0.2); margin-bottom: 2rem; background: rgba(0,0,0,0.3);">
-        <p style="color: #00ffcc; text-transform: uppercase; font-size: 0.8rem; margin:0 0 5px 0;">Trust Level</p>
-        <p style="margin: 0; color: white; font-weight: 700; font-size: 1.1rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 1rem; margin-bottom: 1rem;">Zero-Trust Biometric Secure ✓</p>
-        
-        <p style="color: #00ffcc; text-transform: uppercase; font-size: 0.8rem; margin:0 0 5px 0;">Identity Status</p>
-        <p style="margin: 0; color: white; line-height: 1.4;">Personal information encrypted &amp; stored consistently with Fortress ID protocols.</p>
-        
-        <button id="logout-btn" style="margin-top: 2rem; width: 100%; background: rgba(255, 60, 60, 0.1); border: 1px solid #ff3c3c; color: #ff3c3c; padding: 0.6rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.8rem;">
-           Log Out / Reset Identity
-        </button>
-      </div>
-
-      <button class="btn-primary" id="close-profile" style="max-width: 350px;">Return to FLUX</button>
 
   `;
   document.getElementById('app').appendChild(d);
@@ -953,6 +963,7 @@ function renderProfilePage() {
     document.getElementById('profile-view').remove();
   });
   document.getElementById('logout-btn').addEventListener('click', () => {
+    hibernateEverything();
     localStorage.clear();
     location.reload();
   });
@@ -1333,6 +1344,10 @@ function renderExpiredPass(container) {
 }
 
 // Start sequence
+function initApp() {
+  initP5Background(); // Initialize (starts paused)
+  renderAuthPage();
+}
 initApp();
 /**
  * AVATAR ENGINE & PICKER
@@ -1422,4 +1437,146 @@ function bindUniversalNav() {
 
   // Logo back-to-dashboard shortcut
   document.getElementById('header-logo')?.addEventListener('click', renderHomePage);
+}
+
+/**
+ * P5.js FLOW-FIELD ENGINE (Instance Mode)
+ */
+let p5Instance = null;
+
+function initP5Background() {
+  if (p5Instance) return;
+
+  const sketch = (p) => {
+    const deg = (a) => p.PI / 180 * a;
+    const rand = (v1, v2) => Math.floor(v1 + Math.random() * (v2 - v1));
+    const opt = {
+      particles: p.windowWidth / 500 ? 1000 : 500,
+      noiseScale: 0.009,
+      angle: p.PI / 180 * -90,
+      h1: rand(0, 360), h2: rand(0, 360),
+      s1: rand(20, 90), s2: rand(20, 90),
+      l1: rand(30, 80), l2: rand(30, 80),
+      strokeWeight: 1.2,
+      tail: 82,
+    };
+    const Particles = [];
+    let time = 0;
+    let isPaused = true;
+
+    p.setup = () => {
+      const cnv = p.createCanvas(p.windowWidth, p.windowHeight);
+      cnv.id('flux-bg-canvas');
+      cnv.style('position', 'fixed');
+      cnv.style('top', '0');
+      cnv.style('left', '0');
+      cnv.style('z-index', '-1');
+      cnv.style('opacity', '0');
+      cnv.style('transition', 'opacity 2s ease');
+      cnv.style('pointer-events', 'none');
+
+      for (let i = 0; i < opt.particles; i++) {
+        Particles.push(new Particle(p.random(p.width), p.random(p.height), p, opt));
+      }
+      p.strokeWeight(opt.strokeWeight);
+      p.noLoop(); // Start paused
+    };
+
+    p.draw = () => {
+      time++;
+      p.background(0, 100 - opt.tail);
+      for (let particle of Particles) {
+        particle.update(time);
+        particle.render();
+      }
+    };
+
+    p.windowResized = () => {
+      p.resizeCanvas(p.windowWidth, p.windowHeight);
+    };
+
+    // Public controller methods
+    p.wake = () => {
+      const el = document.getElementById('flux-bg-canvas');
+      if (el) el.style.opacity = '1';
+      p.loop();
+    };
+
+    p.hibernate = () => {
+      const el = document.getElementById('flux-bg-canvas');
+      if (el) el.style.opacity = '0';
+      p.noLoop();
+    };
+
+    p.randomizeField = () => {
+      opt.h1 = rand(0, 360); opt.h2 = rand(0, 360);
+      opt.s1 = rand(20, 90); opt.s2 = rand(20, 90);
+      opt.l1 = rand(30, 80); opt.l2 = rand(30, 80);
+      opt.angle += deg(p.random(60, 60)) * (p.random() > .5 ? 1 : -1);
+      for (let part of Particles) part.randomize();
+    };
+  };
+
+  p5Instance = new p5(sketch);
+  
+  // Bind global click to randomize (as per user request)
+  document.body.addEventListener('click', (e) => {
+    // Prevent randomizing if clicking interactive dashboard elements
+    if (e.target.closest('.promo-card') || e.target.closest('button') || e.target.closest('.bottom-nav')) return;
+    p5Instance?.randomizeField();
+  });
+}
+
+class Particle {
+  constructor(x, y, p, opt) {
+    this.p = p;
+    this.opt = opt;
+    this.x = x; this.y = y;
+    this.lx = x; this.ly = y;
+    this.vx = 0; this.vy = 0;
+    this.ax = 0; this.ay = 0;
+    this.randomize();
+  }
+  
+  randomize() {
+    this.hueSemen = Math.random();
+    this.hue = this.hueSemen > .5 ? 20 + this.opt.h1 : 20 + this.opt.h2;
+    this.sat = this.hueSemen > .5 ? this.opt.s1 : this.opt.s2;
+    this.light = this.hueSemen > .5 ? this.opt.l1 : this.opt.l2;
+    this.maxSpeed = this.hueSemen > .5 ? 3 : 2;
+  }
+  
+  update(time) {
+    this.follow(time);
+    this.vx += this.ax; this.vy += this.ay;
+    const p = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+    const a = Math.atan2(this.vy, this.vx);
+    const m = Math.min(this.maxSpeed, p);
+    this.vx = Math.cos(a) * m;
+    this.vy = Math.sin(a) * m;
+    this.x += this.vx; this.y += this.vy;
+    this.ax = 0; this.ay = 0;
+    this.edges();
+  }
+  
+  follow(time) {
+    let angle = (this.p.noise(this.x * this.opt.noiseScale, this.y * this.opt.noiseScale, time * this.opt.noiseScale)) * Math.PI * 0.5 + this.opt.angle;
+    this.ax += Math.cos(angle);
+    this.ay += Math.sin(angle);
+  }
+  
+  updatePrev() { this.lx = this.x; this.ly = this.y; }
+  
+  edges() {
+    if (this.x < 0) { this.x = this.p.width; this.updatePrev(); }
+    if (this.x > this.p.width) { this.x = 0; this.updatePrev(); }
+    if (this.y < 0) { this.y = this.p.height; this.updatePrev(); }
+    if (this.y > this.p.height) { this.y = 0; this.updatePrev(); }
+  }
+  
+  render() {
+    this.p.stroke(`hsla(${this.hue}, ${this.sat}%, ${this.light}%, .5)`);
+    this.p.line(this.x, this.y, this.lx, this.ly);
+    this.updatePrev();
+  }
 }

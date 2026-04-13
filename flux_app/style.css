@@ -38,17 +38,17 @@ body.theme-blue {
   background: radial-gradient(circle at top center, #002244 0%, var(--bg-core) 70%, #001122 150%);
 }
 
-#app {
+# app {
   width: 100%;
   max-width: var(--max-app-width);
   min-height: 100vh;
   margin: 0 auto;
-  padding: 0; /* Remove padding to eliminate background bleed */
+  padding: 0; 
   display: flex;
   flex-direction: column;
   position: relative;
   z-index: 10;
-  background: var(--bg-core); /* Ensure root is opaque */
+  background: transparent; /* Reveal flow-field canvas */
   transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: none;
 }
@@ -299,7 +299,7 @@ input:focus {
   padding: 1rem var(--screen-pad-x);
   padding-top: max(2rem, env(safe-area-inset-top)); /* safe area offset */
 
-  background: rgba(19, 19, 19, 0.95);
+  background: rgba(19, 19, 19, 0.85); /* Semi-transparent header */
   backdrop-filter: blur(20px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
@@ -1082,4 +1082,32 @@ input:focus {
 
 #market-back-btn, #entry-back-btn {
   /* Inherit from .nav-back-btn */
+}
+
+/* === THE CURVED DECK (Profile & Menu Overlays) === */
+.curved-deck {
+  background: rgba(15, 15, 20, 0.7);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 40px;
+  padding: 2.5rem;
+  width: 100%;
+  max-width: 450px;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+  animation: deckSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes deckSlideUp {
+  from { transform: translateY(40px) scale(0.95); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.profile-overlay.p5-active {
+  background: rgba(0, 0, 0, 0.3) !important; /* Lighter overlay when p5 is active */
 }
