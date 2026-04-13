@@ -31,6 +31,13 @@ let mockMarketData = [
 
 let marketInterval = null;
 
+// --- NOTIFICATION THROTTLE STATE ---
+const flashNotifTracker = {
+  firstShown: false,
+  extraCount: 0,
+  lastShownAt: 0
+};
+
 function updateMarketSimulation() {
   mockMarketData.forEach(item => {
     // Random fluctuation: Wait time changes +/- 2 mins
@@ -67,10 +74,32 @@ function updateMarketSimulation() {
 }
 
 function checkForArbitrageDeals(congestedStand) {
-  // Find a nearby stand with low wait times
-  const dealStand = mockMarketData.find(m => m.wait < 6 && m.id !== congestedStand.id);
-  if (dealStand) {
-    showFlashDealAlert(congestedStand, dealStand);
+  const now = Date.now();
+  
+  // 1. Mandatory 3s lapse between ANY notifications
+  if (now - flashNotifTracker.lastShownAt < 3000) return;
+
+  // 2. Initial Post-Login Notification
+  if (!flashNotifTracker.firstShown) {
+     const dealStand = mockMarketData.find(m => m.wait < 6 && m.id !== congestedStand.id);
+     if (dealStand) {
+        showFlashDealAlert(congestedStand, dealStand);
+        flashNotifTracker.firstShown = true;
+        flashNotifTracker.lastShownAt = now;
+     }
+     return;
+  }
+
+  // 3. func1 & func2: Interest Check
+  // If user hasn't visited Market yet, extraCount is 0 (stop).
+  // If they HAVE visited, extraCount is reset to 2 per visit.
+  if (flashNotifTracker.extraCount > 0) {
+     const dealStand = mockMarketData.find(m => m.wait < 6 && m.id !== congestedStand.id);
+     if (dealStand) {
+        showFlashDealAlert(congestedStand, dealStand);
+        flashNotifTracker.extraCount--;
+        flashNotifTracker.lastShownAt = now;
+     }
   }
 }
 
@@ -489,6 +518,10 @@ function renderFlashMarket() {
 
   document.getElementById('market-back-btn').addEventListener('click', renderHomePage);
   document.getElementById('market-avatar')?.addEventListener('click', renderProfilePage);
+  
+  // Reset-on-Visit: Every visit grants 2 more notifications
+  flashNotifTracker.extraCount = 2;
+  
   updateMarketDisplay();
 }
 
