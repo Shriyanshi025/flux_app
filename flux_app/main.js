@@ -986,9 +986,9 @@ function renderEntryModule() {
 
       <!-- Scrollable content -->
       <div id="entry-view" class="main-feed animated">
-        <div class="entry-grid" id="entry-grid-target">
-           <!-- slots injected here -->
-        </div>
+         <!-- Content injected here by sub-renderers -->
+      </div>
+      
       ${getBottomNavHTML()}
     </div>
   `;
@@ -1126,11 +1126,7 @@ function renderLockout(container) {
            <p style="color: rgba(255,255,255,0.65); font-size: 0.8rem; margin: 0; line-height: 1.6;">Your Green Pass turns Grey if you arrive outside your slot. You'll join the standard queue and lose Fast Lane access for this event.</p>
         </div>
      </div>
-     ${getBottomNavHTML()}
   `;
-
-  bindUniversalNav();
-  setNavActive(0);
 
   if (mockEntryState.timerInterval) clearInterval(mockEntryState.timerInterval);
 
@@ -1185,11 +1181,7 @@ function renderLockout(container) {
         </button>
       </div>
     </div>
-    ${getBottomNavHTML()}
   `;
-
-  bindUniversalNav();
-  setNavActive(0);
 
   document.getElementById('start-geo-verification').addEventListener('click', triggerVerification);
   
@@ -1267,11 +1259,7 @@ function renderActivePass(container, geoContext) {
 
       <button class="btn-primary" id="reset-entry-btn" style="margin-top:2.5rem; background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); color: #888; font-size: 0.75rem;">Reset Demo State</button>
     </div>
-    ${getBottomNavHTML()}
   `;
-
-  bindUniversalNav();
-  setNavActive(0);
 
   // === Inject initial QR ===
   const injectQR = () => {
@@ -1334,11 +1322,7 @@ function renderExpiredPass(container) {
            <button class="btn-primary" id="rebook-btn" style="background: #444; border-color: #666;">Book a New Slot</button>
         </div>
      </div>
-     ${getBottomNavHTML()}
   `;
-
-  bindUniversalNav();
-  setNavActive(0);
 
   document.getElementById('rebook-btn').addEventListener('click', () => {
     mockEntryState.bookedSlot = null;
