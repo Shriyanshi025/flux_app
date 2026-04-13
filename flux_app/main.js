@@ -309,15 +309,13 @@ function checkExistingUser() {
   }
 }
 
-// ============================================================
-// HOME PAGE
-// ============================================================
+function renderHomePage() {
   const hasPlayedDrone = sessionStorage.getItem('flux_drone_played');
+  const appEl = document.querySelector('#app');
 
   if (hasPlayedDrone) {
     document.body.classList.add('theme-blue');
     document.body.classList.remove('theme-magenta');
-    const appEl = document.querySelector('#app');
     renderHomeHTML(appEl);
     return;
   }
@@ -329,7 +327,6 @@ function checkExistingUser() {
     document.body.classList.add('theme-blue');
     document.body.classList.remove('theme-magenta');
 
-    const appEl = document.querySelector('#app');
     const droneEl = document.createElement('div');
     droneEl.id = 'intro-drone';
     droneEl.className = 'drone-zoom';
@@ -347,82 +344,82 @@ function checkExistingUser() {
 
 function renderHomeHTML(appEl) {
   appEl.innerHTML = `
-        <div id="home-container" class="animated">
-          
-          <!-- Header -->
-          <div class="top-nav">
-            <div style="display: flex; align-items: center; gap: 1rem;">
-              <div class="icon" id="nav-menu-btn">
-                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-              </div>
-              <div class="nav-logo" id="header-logo" style="cursor: pointer;">FLUX</div>
-            </div>
-
-            <div class="avatar" id="nav-avatar">
-               ${getAvatarHTML(parseInt(localStorage.getItem('flux_avatar_idx') || 0), 28)}
-            </div>
-
-          </div>
-
-          <!-- User Greeting -->
-          <div class="home-greeting" id="home-greeting">
-            HELLO, ${localStorage.getItem('flux_user')?.split(' ')[0].toUpperCase() || 'GUEST'}
-          </div>
-
-          <!-- Scrollable content -->
-
-          <div class="main-feed" id="home-feed">
-            <div class="promo-card card-arrival">
-              <h3>Arrival: Green Carpet</h3>
-              <p>Book a 10-minute arrival slot up to 7 days in advance. Arrive on time, unlock the Fast Lane.</p>
-              <div class="blurred-qr"></div>
-              <button class="btn-primary" id="open-entry-btn">Book My Arrival Slot</button>
-            </div>
-
-            <div class="promo-card card-halftime">
-              <h3>Halftime: Flash Market</h3>
-              <p>40k people want Burgers. Tacos are empty. Take 50% Off deals and skip the concourse crush entirely.</p>
-              <button class="btn-primary">Live Heatmap Deals</button>
-            </div>
-
-            <div class="promo-card card-departure">
-              <h3>Departure: Soft Exit</h3>
-              <p>Avoid post-game congestion. Stay in your seat, unlock exclusive interviews, or redeem a 20% ride discount!</p>
-              <button class="btn-primary">Access Soft-Exit Perks</button>
-            </div>
-
-            <!-- Sentinel for copyright detection -->
-            <div id="end-sentinel" style="height: 1px; width: 100%; margin-top: 10vh;"></div>
-          </div>
-
-          <!-- Smart Copyright (Fixed above Nav) -->
-          <div id="copyright-notice">© 2026 FLUX Crowd Orchestration</div>
-
-          <!-- Sticky Bottom Nav -->
-          <div class="bottom-nav">
-            <div class="nav-item" data-color="var(--accent)" data-index="0" id="nav-home">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-              Entry
-            </div>
-            <div class="nav-item" data-color="#00ffcc" data-index="1" id="nav-break">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-              Break
-            </div>
-            <div class="nav-item" data-color="#ff003c" data-index="2" id="nav-exit">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-              Exit
-            </div>
-          </div>
-      bindHomeEvents();
-      renderSideNav(); 
-      initSmartHomeLogic(); 
+    <div id="home-container" class="animated">
       
-      // Start market background simulation if not running
-      if (!marketInterval) {
-        marketInterval = setInterval(updateMarketSimulation, 4000);
-      }
-    }, 3000);
-  };
+      <!-- Header -->
+      <div class="top-nav">
+        <div style="display: flex; align-items: center; gap: 1rem;">
+          <div class="icon" id="nav-menu-btn">
+             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+          </div>
+          <div class="nav-logo" id="header-logo" style="cursor: pointer;">FLUX</div>
+        </div>
+
+        <div class="avatar" id="nav-avatar">
+           ${getAvatarHTML(parseInt(localStorage.getItem('flux_avatar_idx') || 0), 28)}
+        </div>
+
+      </div>
+
+      <!-- User Greeting -->
+      <div class="home-greeting" id="home-greeting">
+        HELLO, ${localStorage.getItem('flux_user')?.split(' ')[0].toUpperCase() || 'GUEST'}
+      </div>
+
+      <!-- Scrollable content -->
+      <div class="main-feed" id="home-feed">
+        <div class="promo-card card-arrival">
+          <h3>Arrival: Green Carpet</h3>
+          <p>Book a 10-minute arrival slot up to 7 days in advance. Arrive on time, unlock the Fast Lane.</p>
+          <div class="blurred-qr"></div>
+          <button class="btn-primary" id="open-entry-btn">Book My Arrival Slot</button>
+        </div>
+
+        <div class="promo-card card-halftime">
+          <h3>Halftime: Flash Market</h3>
+          <p>40k people want Burgers. Tacos are empty. Take 50% Off deals and skip the concourse crush entirely.</p>
+          <button class="btn-primary">Live Heatmap Deals</button>
+        </div>
+
+        <div class="promo-card card-departure">
+          <h3>Departure: Soft Exit</h3>
+          <p>Avoid post-game congestion. Stay in your seat, unlock exclusive interviews, or redeem a 20% ride discount!</p>
+          <button class="btn-primary">Access Soft-Exit Perks</button>
+        </div>
+
+        <!-- Sentinel for copyright detection -->
+        <div id="end-sentinel" style="height: 1px; width: 100%; margin-top: 10vh;"></div>
+      </div>
+
+      <!-- Smart Copyright (Fixed above Nav) -->
+      <div id="copyright-notice">© 2026 FLUX Crowd Orchestration</div>
+
+      <!-- Sticky Bottom Nav -->
+      <div class="bottom-nav">
+        <div class="nav-item" data-color="var(--accent)" data-index="0" id="nav-home">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+          Entry
+        </div>
+        <div class="nav-item" data-color="#00ffcc" data-index="1" id="nav-break">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          Break
+        </div>
+        <div class="nav-item" data-color="#ff003c" data-index="2" id="nav-exit">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Exit
+        </div>
+      </div>
+    </div>
+  `;
+
+  bindHomeEvents();
+  renderSideNav(); 
+  initSmartHomeLogic(); 
+  
+  // Start market background simulation if not running
+  if (!marketInterval) {
+    marketInterval = setInterval(updateMarketSimulation, 4000);
+  }
 }
 function bindHomeEvents() {
   // Flash Market Bindings (Card and Nav)
@@ -1046,7 +1043,7 @@ function renderTimeSlots(container) {
         </div>
     </div>
 
-    <div class="slot-grid">${slotCards}</div>
+    <div class="entry-grid">${slotCards}</div>
   `;
 
   container.querySelectorAll('.btn-book').forEach(btn => {
