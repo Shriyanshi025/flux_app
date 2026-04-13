@@ -38,7 +38,7 @@ body.theme-blue {
   background: radial-gradient(circle at top center, #002244 0%, var(--bg-core) 70%, #001122 150%);
 }
 
-#app-container {
+#app {
   width: 100%;
   max-width: var(--max-app-width);
   margin: 0 auto;
@@ -280,7 +280,7 @@ input:focus {
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: var(--max-app-width);
+  max-width: 100%;
   margin: 0 auto;
   height: 100vh;
   box-sizing: border-box;
@@ -537,8 +537,8 @@ input:focus {
 
 /* === ENTRY MODULE STYLES === */
 #entry-view {
-  padding: 110px var(--screen-pad-x) 100px;
-  max-width: var(--max-app-width);
+  padding: 110px 0 100px; /* Internal padding only */
+  max-width: 100%;
   margin: 0 auto;
   width: 100%;
 }
@@ -872,11 +872,11 @@ input:focus {
 .ticker-item.down { color: #ff003c; }
 
 .market-feed {
-  padding: 40px var(--screen-pad-x) 100px;
+  padding: 40px 0 100px;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 1.5rem;
-  max-width: var(--max-app-width);
+  max-width: 100%;
   margin: 0 auto;
   width: 100%;
 }
