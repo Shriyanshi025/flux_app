@@ -1,0 +1,1179 @@
+import './style.css'
+
+const STADIUMS = [
+  { name: 'Sector 4 Arena (New York)', lat: 40.7128, lng: -74.0060 },
+  { name: 'O2 London', lat: 51.5074, lng: -0.1278 },
+  { name: 'Tokyo Dome', lat: 35.6762, lng: 139.6503 }
+];
+
+// Capacity Cap: each slot has a hard limit. Full slots vanish from the menu.
+const SLOT_CAPACITY = {
+  'relaxed':  { label: 'Relaxed Arrival (2h)', booked: 127, max: 500, points: 200, isPeak: false },
+  'early':    { label: 'Early Bird (1.5h)',    booked: 312, max: 500, points: 100, isPeak: false },
+  'standard': { label: 'Standard Entry (1h)',  booked: 489, max: 500, points: 50,  isPeak: false },
+  'peak':     { label: 'Peak Pulse (30m)',     booked: 500, max: 500, points: 0,   isPeak: true  } // FULL
+};
+
+let mockEntryState = {
+  bookedSlot: null,
+  unlockTime: 0,
+  isLate: false,
+  timerInterval: null
+};
+
+// === GOOGLE SERVICES: FIREBASE ANALYTICS (Simulated) ===
+const firebaseConfig = { projectId: 'engaged-hash-492618-d8', appId: 'flux-fortress-1' };
+function logFirebaseEvent(evt, data = {}) {
+  console.log(`[Firebase Analytics] Event: ${evt}`, { ...data, timestamp: Date.now() });
+}
+// Log initial session start
+logFirebaseEvent('app_session_start', { vertical: 'Smart Infrastructure' });
+
+
+// === PERSISTENCE HELPERS ===
+function saveEntryState() {
+  const { timerInterval, ...serializable } = mockEntryState;
+  localStorage.setItem('flux_entry_state', JSON.stringify(serializable));
+}
+
+function loadEntryState() {
+  const saved = localStorage.getItem('flux_entry_state');
+  if (saved) {
+    const data = JSON.parse(saved);
+    mockEntryState = { ...mockEntryState, ...data };
+  }
+}
+
+
+// === UTILITY: Haversine distance in km ===
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// === QR CODE SVG GENERATOR ===
+// Produces a visually authentic QR code SVG with randomised data modules.
+// Seed changes every 3s so the code visually "rotates" and screenshots show
+// a frozen frame that is different from the live display.
+function generateQRSVG(seed) {
+  const mods = 21;  // QR Version 1: 21×21
+  const msz  = 9;   // pixels per module
+  const total = mods * msz;
+
+  let rng = (seed >>> 0);
+  const rand = () => { rng = ((rng * 1664525 + 1013904223) >>> 0); return rng / 4294967296; };
+
+  // Data modules — skip finder/timing reserved areas
+  let data = '';
+  for (let r = 0; r < mods; r++) {
+    for (let c = 0; c < mods; c++) {
+      if (r < 9 && c < 9)         continue; // top-left finder
+      if (r < 9 && c > 12)        continue; // top-right finder
+      if (r > 12 && c < 9)        continue; // bottom-left finder
+      if (r === 6 || c === 6) {              // timing pattern
+        if ((r + c) % 2 === 0) data += `<rect x="${c*msz}" y="${r*msz}" width="${msz}" height="${msz}" fill="#000"/>`;
+        continue;
+      }
+      if (rand() > 0.52) data += `<rect x="${c*msz}" y="${r*msz}" width="${msz}" height="${msz}" fill="#000"/>`;
+    }
+  }
+
+  // Finder pattern (7×7 with inner eye)
+  const fp = (x, y) => `
+    <rect x="${x}" y="${y}" width="${7*msz}" height="${7*msz}" fill="#000"/>
+    <rect x="${x+msz}" y="${y+msz}" width="${5*msz}" height="${5*msz}" fill="#fff"/>
+    <rect x="${x+2*msz}" y="${y+2*msz}" width="${3*msz}" height="${3*msz}" fill="#000"/>`;
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${total} ${total}" width="${total}" height="${total}">
+    <rect width="${total}" height="${total}" fill="#fff"/>
+    ${data}
+    ${fp(0, 0)}
+    ${fp((mods-7)*msz, 0)}
+    ${fp(0, (mods-7)*msz)}
+  </svg>`;
+}
+
+// ============================================================
+// LOGIN / REGISTER SCREEN
+// ============================================================
+function initApp() {
+  document.querySelector('#app').innerHTML = `
+    <div id="app-container">
+      <h1 class="logo">FLUX</h1>
+      
+      <div id="welcome-msg" class="hidden" style="text-align: center; margin-bottom: 2rem;">
+        <p style="color: var(--text-muted);">Welcome back,</p>
+        <h2 id="saved-username" style="margin:0; font-size: 2rem; color: var(--accent); text-shadow: 0 0 10px rgba(57, 255, 20, 0.5);"></h2>
+      </div>
+
+      <div class="auth-box">
+        <div class="tabs" id="auth-tabs">
+          <div class="tab active" data-target="login-form">Login</div>
+          <div class="tab" data-target="register-form">Register</div>
+        </div>
+
+        <div id="login-form" class="animated">
+          <button id="biometric-login-btn" class="btn-primary">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3a2 2 0 0 0-2 2"></path><path d="M19 3a2 2 0 0 1 2 2"></path><path d="M21 19a2 2 0 0 1-2 2"></path><path d="M5 21a2 2 0 0 1-2-2"></path><path d="M9 12a3 3 0 1 0 6 0 3 3 0 1 0-6 0"></path><path d="M9 16c0 1.657 1.343 3 3 3s3-1.343 3-3"></path><path d="M15 8V8.01"></path><path d="M9 8V8.01"></path></svg>
+            FaceID / Fingerprint
+          </button>
+          
+          <div style="margin-top: 1.5rem; text-align: center;">
+            <a href="#" id="continue-guest-btn" style="color: rgba(255,255,255,0.4); text-decoration: none; font-size: 0.9rem; letter-spacing: 0.05em; transition: color 0.3s;">
+              Continue as <span style="color: #ffaa00; font-weight: 700;">GUEST</span>
+            </a>
+          </div>
+        </div>
+
+
+        <div id="register-form" class="hidden animated">
+          <div class="form-group">
+            <label>Username</label>
+            <input type="text" id="reg-username" placeholder="Enter username..." />
+          </div>
+          
+          <div class="form-group">
+            <label>Location</label>
+            <input type="text" id="reg-location" placeholder="e.g. Current Location" />
+            <button class="geo-btn" id="fetch-location-btn">Auto</button>
+          </div>
+
+          <div class="form-group">
+            <label>Nearest Stadium</label>
+            <input type="text" id="reg-stadium" placeholder="Select auto to compute..." readonly />
+          </div>
+
+          <button id="register-submit-btn" class="btn-primary" style="background: var(--accent); color: black;">
+            Initialize Fortress
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  bindEvents();
+  loadEntryState();
+  checkExistingUser();
+}
+
+
+function computeNearestStadium(lat, lng) {
+  // Haversine — finds closest stadium from array
+  let nearest = STADIUMS[0];
+  let minDist = Infinity;
+  STADIUMS.forEach(s => {
+    const dLat = (s.lat - lat) * Math.PI / 180;
+    const dLng = (s.lng - lng) * Math.PI / 180;
+    const a = Math.sin(dLat/2)**2 + Math.cos(lat * Math.PI/180) * Math.cos(s.lat * Math.PI/180) * Math.sin(dLng/2)**2;
+    const dist = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    if (dist < minDist) { minDist = dist; nearest = s; }
+  });
+  return nearest;
+}
+
+function bindEvents() {
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', (e) => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      e.currentTarget.classList.add('active');
+      const targetId = e.currentTarget.getAttribute('data-target');
+      document.getElementById('login-form').classList.add('hidden');
+      document.getElementById('register-form').classList.add('hidden');
+      document.getElementById(targetId).classList.remove('hidden');
+    });
+  });
+
+  const fetchBtn = document.getElementById('fetch-location-btn');
+  if (fetchBtn) fetchBtn.addEventListener('click', () => {
+    if (navigator.geolocation) {
+      fetchBtn.innerHTML = '...';
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const stadium = computeNearestStadium(pos.coords.latitude, pos.coords.longitude);
+          document.getElementById('reg-location').value = `${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`;
+          document.getElementById('reg-stadium').value = stadium.name;
+          fetchBtn.innerHTML = 'Done ✓';
+        },
+        () => {
+          // Fallback if denied
+          document.getElementById('reg-location').value = '40.7128, -74.0060';
+          document.getElementById('reg-stadium').value = 'Sector 4 Arena (New York)';
+          fetchBtn.innerHTML = 'Done ✓';
+        }
+      );
+    } else {
+      document.getElementById('reg-location').value = '40.7128, -74.0060';
+      document.getElementById('reg-stadium').value = 'Sector 4 Arena (New York)';
+      fetchBtn.innerHTML = 'Done ✓';
+    }
+  });
+
+  const regBtn = document.getElementById('register-submit-btn');
+  if (regBtn) regBtn.addEventListener('click', () => {
+    const username = document.getElementById('reg-username').value.trim();
+    if (username) {
+      logFirebaseEvent('identity_created', { username });
+      localStorage.setItem('flux_user', username);
+      renderHomePage();
+
+    } else {
+      alert('Please enter a username');
+    }
+  });
+
+  const bioBtn = document.getElementById('biometric-login-btn');
+  if (bioBtn) bioBtn.addEventListener('click', () => {
+    bioBtn.innerHTML = 'Scanning Biometrics...';
+    bioBtn.disabled = true;
+    setTimeout(() => {
+      bioBtn.innerHTML = 'Authenticated ✓';
+      bioBtn.style.background = 'var(--accent)';
+      bioBtn.style.color = '#000';
+      document.body.style.boxShadow = 'inset 0 0 100px var(--accent)';
+      setTimeout(() => {
+        document.body.style.boxShadow = '';
+        renderHomePage();
+      }, 1000);
+    }, 1500);
+  });
+
+  const guestBtn = document.getElementById('continue-guest-btn');
+  if (guestBtn) guestBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    localStorage.setItem('flux_user', 'GUEST');
+    renderHomePage();
+  });
+}
+
+
+function checkExistingUser() {
+  const user = localStorage.getItem('flux_user');
+  if (user) {
+    renderHomePage();
+  }
+}
+
+// ============================================================
+// HOME PAGE
+// ============================================================
+function renderHomePage() {
+  // 1. Pre-load the drone asset to ensure zero flickering or 'parts-by-parts' rendering
+  const preloadImg = new Image();
+  preloadImg.src = '/drone_shot.png';
+  
+  preloadImg.onload = () => {
+    document.body.classList.add('theme-blue');
+    document.body.classList.remove('theme-magenta');
+
+    const appEl = document.querySelector('#app');
+    const droneEl = document.createElement('div');
+    droneEl.id = 'intro-drone';
+    droneEl.className = 'drone-zoom';
+    appEl.parentNode.insertBefore(droneEl, appEl);
+    appEl.innerHTML = '';
+
+    setTimeout(() => {
+      const drone = document.getElementById('intro-drone');
+      if (drone) drone.remove();
+
+      appEl.innerHTML = `
+        <div id="home-container" class="animated">
+          
+          <!-- Header -->
+          <div class="top-nav">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+              <div class="icon" id="nav-menu-btn">
+                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+              </div>
+              <div class="nav-logo" id="header-logo" style="cursor: pointer;">FLUX</div>
+            </div>
+
+            <div class="avatar" id="nav-avatar">
+               ${getAvatarHTML(parseInt(localStorage.getItem('flux_avatar_idx') || 0), 28)}
+            </div>
+
+          </div>
+
+          <!-- User Greeting -->
+          <div class="home-greeting" id="home-greeting">
+            HELLO, ${localStorage.getItem('flux_user')?.split(' ')[0].toUpperCase() || 'GUEST'}
+          </div>
+
+          <!-- Scrollable content -->
+
+          <div class="main-feed" id="home-feed">
+            <div class="promo-card card-arrival">
+              <h3>Arrival: Green Carpet</h3>
+              <p>Book a 10-minute arrival slot up to 7 days in advance. Arrive on time, unlock the Fast Lane.</p>
+              <div class="blurred-qr"></div>
+              <button class="btn-primary" id="open-entry-btn">Book My Arrival Slot</button>
+            </div>
+
+            <div class="promo-card card-halftime">
+              <h3>Halftime: Flash Market</h3>
+              <p>40k people want Burgers. Tacos are empty. Take 50% Off deals and skip the concourse crush entirely.</p>
+              <button class="btn-primary">Live Heatmap Deals</button>
+            </div>
+
+            <div class="promo-card card-departure">
+              <h3>Departure: Soft Exit</h3>
+              <p>Avoid post-game congestion. Stay in your seat, unlock exclusive interviews, or redeem a 20% ride discount!</p>
+              <button class="btn-primary">Access Soft-Exit Perks</button>
+            </div>
+
+            <!-- Sentinel for copyright detection -->
+            <div id="end-sentinel" style="height: 1px; width: 100%; margin-top: 10vh;"></div>
+          </div>
+
+          <!-- Smart Copyright (Fixed above Nav) -->
+          <div id="copyright-notice">© 2026 FLUX Crowd Orchestration</div>
+
+          <!-- Sticky Bottom Nav -->
+          <div class="bottom-nav">
+            <div class="nav-item" data-color="var(--accent)" data-index="0">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+              Entry
+            </div>
+            <div class="nav-item" data-color="#00ffcc" data-index="1">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              Break
+            </div>
+            <div class="nav-item" data-color="#ff003c" data-index="2">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              Exit
+            </div>
+          </div>
+        </div>
+      `;
+
+      bindHomeEvents();
+      renderSideNav(); 
+      initSmartHomeLogic(); // Handle card vanishing and copyright visibility
+    }, 3000);
+  };
+}
+
+
+function initSmartHomeLogic() {
+  const homeFeed = document.getElementById('home-feed');
+  if (!homeFeed) return;
+
+  const cards = Array.from(homeFeed.querySelectorAll('.promo-card'));
+  const sentinel = document.getElementById('end-sentinel');
+  const copyright = document.getElementById('copyright-notice');
+
+  // 1. Copyright Visibility (Intersection Observer)
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        copyright.classList.add('visible');
+      } else {
+        copyright.classList.remove('visible');
+      }
+    });
+  }, { threshold: 0.1 });
+
+  if (sentinel) observer.observe(sentinel);
+
+  // 2. Progressive Card Vanishing Logic
+  // We use a linear interpolation (lerp) based on the next card's position.
+  const STICKY_TOP = 100;
+
+  const updateCardVis = () => {
+    cards.forEach((card, i) => {
+      const nextCard = cards[i + 1];
+      if (!nextCard) return;
+
+      const rect = card.getBoundingClientRect();
+      const nextRect = nextCard.getBoundingClientRect();
+      
+      // We start fading when Card 2's top is 100px above Card 1's bottom.
+      // We finish fading when Card 2's top is at 120px (slightly BEFORE sticky 100px)
+      // to ensure Card 1 is ABSOLUTELY GONE before the overlay is perfect.
+      const startFadeY = rect.bottom;
+      const endFadeY   = STICKY_TOP + 20; // Added 20px buffer for absolute hiding
+      
+      let opacity = 1;
+      let scale   = 1;
+      let blur    = 0;
+
+      if (nextRect.top <= startFadeY) {
+        const range = startFadeY - endFadeY;
+        const progress = (nextRect.top - endFadeY) / range;
+        
+        // Quadratic curve for a more cinematic fade
+        opacity = Math.max(0, Math.min(1, progress * progress));
+        
+        scale = 0.95 + (0.05 * opacity);
+        blur  = (1 - opacity) * 8;
+      }
+      
+      card.style.opacity = opacity;
+      card.style.transform = `scale(${scale})`;
+      card.style.filter = `blur(${blur}px)`;
+      
+      // Strict hidden state
+      if (opacity <= 0.01) {
+        card.style.opacity = '0';
+        card.style.visibility = 'hidden';
+      } else {
+        card.style.visibility = 'visible';
+      }
+      
+      card.style.pointerEvents = opacity < 0.1 ? 'none' : 'auto';
+    });
+  };
+
+  homeFeed.addEventListener('scroll', updateCardVis);
+  // Initial check
+  updateCardVis();
+}
+
+function bindHomeEvents() {
+  document.getElementById('nav-avatar').addEventListener('click', renderProfilePage);
+  document.getElementById('open-entry-btn').addEventListener('click', () => {
+    setNavActive(0); // sync entry icon as active
+    const greeting = document.getElementById('home-greeting');
+    if (greeting) greeting.classList.add('hidden');
+    renderEntryModule();
+  });
+
+
+  const navItems = document.querySelectorAll('.bottom-nav .nav-item');
+
+  navItems.forEach((item, index) => {
+    // set initial color for any pre-active item
+    if (item.classList.contains('active')) {
+      item.style.color = item.getAttribute('data-color');
+    }
+    item.addEventListener('click', () => {
+      setNavActive(index);
+      const greeting = document.getElementById('home-greeting');
+      if (index === 0) {
+        if (greeting) greeting.classList.add('hidden');
+        renderEntryModule();
+      } else {
+        // Reset home feed and greeting if going to other functional tabs (if added later)
+        if (greeting) greeting.classList.add('hidden');
+      }
+    });
+
+  });
+
+  document.getElementById('nav-menu-btn').addEventListener('click', () => toggleSideNav(true));
+  document.getElementById('nav-avatar').addEventListener('click', () => renderProfilePage());
+
+
+
+  document.getElementById('header-logo').addEventListener('click', () => {
+    const homeFeed = document.getElementById('home-feed');
+    const entryView = document.getElementById('entry-view');
+
+    if (mockEntryState.timerInterval) {
+      clearInterval(mockEntryState.timerInterval);
+      mockEntryState.timerInterval = null;
+    }
+
+    if (entryView) entryView.classList.add('hidden');
+    const greeting = document.getElementById('home-greeting');
+    if (greeting) greeting.classList.remove('hidden');
+
+    if (homeFeed) {
+      homeFeed.classList.remove('hidden');
+      homeFeed.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // reset all nav items
+    const navItems = document.querySelectorAll('.bottom-nav .nav-item');
+    navItems.forEach(n => { n.classList.remove('active'); n.style.color = ''; });
+    if (navigator.vibrate) navigator.vibrate(50);
+  });
+}
+
+
+/** Side Nav Logic */
+function renderSideNav() {
+  if (document.getElementById('side-nav')) return; // already exists
+
+  const overlay = document.createElement('div');
+  overlay.id = 'side-nav-overlay';
+  overlay.className = 'side-nav-overlay';
+  
+  const nav = document.createElement('div');
+  nav.id = 'side-nav';
+  nav.className = 'side-nav';
+
+  nav.innerHTML = `
+    <div class="nav-panel-item" id="nav-prof">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      Profile
+    </div>
+    <div class="nav-panel-item">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      About
+    </div>
+    <div class="nav-panel-item">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      Help
+    </div>
+    <div class="nav-panel-item logout" id="nav-logout">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      Log Out
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+  document.body.appendChild(nav);
+
+  overlay.addEventListener('click', () => toggleSideNav(false));
+  
+  document.getElementById('nav-logout').addEventListener('click', () => {
+    localStorage.clear();
+    location.reload();
+  });
+
+  document.getElementById('nav-prof').addEventListener('click', () => {
+    toggleSideNav(false);
+    renderProfilePage();
+  });
+}
+
+/** 
+ * PROFILE EDITING - ATOMIC & CONSISTENT
+ */
+function renderProfileEdit() {
+  const currentName = localStorage.getItem('flux_user') || 'GUEST';
+  const currentMob = localStorage.getItem('flux_mob') || '+91 ···· ····';
+  const currentEmail = localStorage.getItem('flux_email') || 'alex@fortress.io';
+  const currentAvatarIdx = parseInt(localStorage.getItem('flux_avatar_idx') || 0);
+  const bioEnabled = localStorage.getItem('flux_bio') !== 'false';
+
+  // Draft Data - changes stay here until Confirm
+  const draft = {
+    user: currentName,
+    mob: currentMob,
+    email: currentEmail,
+    bio: bioEnabled,
+    avatar: currentAvatarIdx
+  };
+
+
+  const d = document.createElement('div');
+  d.id = 'edit-profile-view';
+  d.className = 'profile-overlay animated';
+  d.style = "position:fixed; inset:0; background:var(--bg-core); z-index:2000; padding: 2rem var(--screen-pad-x); display: flex; flex-direction: column; align-items: center;";
+
+  d.innerHTML = `
+    <!-- Top: Centered Avatar & Name -->
+    <div style="text-align: center; margin-bottom: 3rem;">
+      <div style="position: relative; width: fit-content; margin: 0 auto 1rem auto;">
+        <div id="edit-avatar-container" class="avatar" style="width: 80px; height: 80px; background: ${getAvatarTheme(draft.avatar).bg}; border-width: 3px;">
+           ${getAvatarHTML(draft.avatar, 40)}
+        </div>
+        <div id="change-avatar-btn" style="position: absolute; bottom: 0; right: 0; background: var(--accent); width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2.5px solid var(--bg-core); cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+        </div>
+      </div>
+      <h2 id="edit-display-name" style="margin: 0; font-size: 1.8rem; color: #fff;">${currentName.toUpperCase()}</h2>
+
+
+      <p style="color: var(--accent); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 5px;">Fortress ID Identity</p>
+    </div>
+
+    <!-- Body: Left Aligned Credentials -->
+    <div style="width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 2rem;">
+      
+      ${renderEditRow('Username', draft.user, 'edit-user')}
+      ${renderEditRow('Mobile No', draft.mob, 'edit-mob')}
+      ${renderEditRow('Email', draft.email, 'edit-email')}
+      
+      <!-- Biometrics Toggle -->
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <p style="color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase; margin: 0 0 4px 0;">Biometrics</p>
+          <p id="bio-status-text" style="color: #fff; font-size: 1.1rem; margin: 0;">${draft.bio ? 'Active' : 'Inactive'}</p>
+        </div>
+        <div id="bio-toggle" style="width: 50px; height: 26px; background: ${draft.bio ? 'var(--accent)' : '#333'}; border-radius: 15px; position: relative; cursor: pointer; transition: 0.3s;">
+          <div style="width: 20px; height: 20px; background: #fff; border-radius: 50%; position: absolute; top: 3px; left: ${draft.bio ? '27px' : '3px'}; transition: 0.3s;"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Footer: Confirm/Cancel -->
+    <div style="margin-top: auto; width: 100%; max-width: 400px; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+       <button id="cancel-edit" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #888; padding: 1rem; border-radius: 12px; cursor: pointer; font-weight:600;">Cancel</button>
+       <button id="confirm-edit" style="background: var(--accent); border: none; color: #000; padding: 1rem; border-radius: 12px; cursor: pointer; font-weight:800; box-shadow: 0 0 20px rgba(57,255,20,0.2);">Save Changes</button>
+    </div>
+  `;
+
+  document.body.appendChild(d);
+
+  // Bind Inline Events
+  d.querySelectorAll('.edit-pencil').forEach(p => {
+    p.addEventListener('click', (e) => {
+      const fieldId = e.currentTarget.getAttribute('data-field');
+      const container = document.getElementById(fieldId).parentNode;
+      const currentVal = document.getElementById(fieldId).innerText;
+      
+      container.innerHTML = `<input type="text" id="${fieldId}-input" value="${currentVal}" style="background: transparent; border: none; border-bottom: 2px solid var(--accent); color: #fff; font-size: 1.1rem; width: 100%; outline: none;" autofocus />`;
+      
+      const input = document.getElementById(`${fieldId}-input`);
+      input.addEventListener('blur', () => {
+         draft[fieldId.replace('edit-', '')] = input.value;
+         container.innerHTML = `<p id="${fieldId}" style="color: #fff; font-size: 1.1rem; margin: 0;">${input.value}</p>`;
+         if (fieldId === 'edit-user') document.getElementById('edit-display-name').innerText = input.value.toUpperCase();
+      });
+    });
+  });
+
+  // Toggle Bio
+  document.getElementById('bio-toggle').addEventListener('click', () => {
+    draft.bio = !draft.bio;
+    document.getElementById('bio-toggle').style.background = draft.bio ? 'var(--accent)' : '#333';
+    document.getElementById('bio-toggle').firstElementChild.style.left = draft.bio ? '27px' : '3px';
+    document.getElementById('bio-status-text').innerText = draft.bio ? 'Active' : 'Inactive';
+  });
+
+  // Change Avatar
+  document.getElementById('change-avatar-btn').addEventListener('click', () => {
+    showAvatarPicker(draft.avatar, (newIdx) => {
+      draft.avatar = newIdx;
+      const theme = getAvatarTheme(newIdx);
+      const container = document.getElementById('edit-avatar-container');
+      container.style.background = theme.bg;
+      container.innerHTML = getAvatarHTML(newIdx, 40);
+    });
+  });
+
+  // Cancel
+  document.getElementById('cancel-edit').addEventListener('click', () => d.remove());
+
+  // Confirm - SAVE TO PERSISTENCE
+  document.getElementById('confirm-edit').addEventListener('click', () => {
+    localStorage.setItem('flux_user', draft.user);
+    localStorage.setItem('flux_mob', draft.mob);
+    localStorage.setItem('flux_email', draft.email);
+    localStorage.setItem('flux_bio', draft.bio);
+    localStorage.setItem('flux_avatar_idx', draft.avatar);
+    
+    // Immediate consistent update
+    const greeting = document.getElementById('home-greeting');
+    if (greeting) greeting.innerText = `HELLO, ${draft.user.split(' ')[0].toUpperCase()}`;
+    
+    const navAvatar = document.getElementById('nav-avatar');
+    if (navAvatar) navAvatar.innerHTML = getAvatarHTML(draft.avatar, 28);
+
+    d.remove();
+    if (navigator.vibrate) navigator.vibrate([30, 50, 30]);
+  });
+}
+
+
+function renderEditRow(label, value, id) {
+  return `
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px;">
+      <div style="flex: 1;">
+        <p style="color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase; margin: 0 0 4px 0;">${label}</p>
+        <p id="${id}" style="color: #fff; font-size: 1.1rem; margin: 0;">${value}</p>
+      </div>
+      <div class="edit-pencil" data-field="${id}" style="cursor: pointer; color: var(--accent); opacity: 0.6;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+      </div>
+    </div>
+  `;
+}
+
+
+function toggleSideNav(isOpen) {
+  const nav = document.getElementById('side-nav');
+  const overlay = document.getElementById('side-nav-overlay');
+  if (isOpen) {
+    nav.classList.add('show');
+    overlay.classList.add('show');
+  } else {
+    nav.classList.remove('show');
+    overlay.classList.remove('show');
+  }
+}
+
+
+/** Helper: activate a specific bottom nav item by index */
+function setNavActive(targetIndex) {
+  const navItems = document.querySelectorAll('.bottom-nav .nav-item');
+  navItems.forEach((n, i) => {
+    n.classList.remove('active');
+    n.style.color = '';
+    if (i === targetIndex) {
+      n.classList.add('active');
+      n.style.color = n.getAttribute('data-color');
+      if (navigator.vibrate) navigator.vibrate(50);
+    }
+  });
+}
+
+// ============================================================
+// PROFILE PAGE
+// ============================================================
+function renderProfilePage() {
+  const username = localStorage.getItem('flux_user') || 'User';
+  const avatarIdx = parseInt(localStorage.getItem('flux_avatar_idx') || 0);
+
+  // Remove existing profile view if re-opened
+  const existing = document.getElementById('profile-view');
+  if (existing) existing.remove();
+
+  const d = document.createElement('div');
+  d.id = 'profile-view';
+  d.className = 'profile-overlay animated';
+  d.style = "position:fixed; inset:0; background:var(--bg-core); z-index:1500; padding: 2rem var(--screen-pad-x); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; overflow-y: auto;";
+  d.innerHTML = `
+     <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 1.5rem; margin-bottom: 1.5rem;">
+       <!-- Identity Cluster -->
+       <div style="display: flex; align-items: center; gap: 1.2rem;">
+         <div class="avatar" style="width: 60px; height: 60px; background: ${getAvatarTheme(avatarIdx).bg}; border-width: 2.5px;">
+            ${getAvatarHTML(avatarIdx, 30)}
+         </div>
+         <div style="text-align: left;">
+           <h2 style="color: var(--accent); margin: 0; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.8;">Identity Pass</h2>
+           <p style="font-size: 1.4rem; margin: 2px 0 0 0; color: #fff; font-weight: 700; line-height: 1;">${username}</p>
+         </div>
+       </div>
+
+       <!-- Isolated Management -->
+       <div id="prof-popup-edit" style="background: var(--accent); color: #000; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2.5px solid var(--bg-core); cursor: pointer; box-shadow: 0 4px 15px rgba(0,255,102,0.3); transition: transform 0.2s;" onclick="this.style.transform='scale(0.95)'">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+       </div>
+     </div>
+
+     <div class="promo-card" id="prof-card-data" style="text-align: left; width: 100%; max-width: 400px; border-color: rgba(255,255,255,0.2); margin-bottom: 2rem; background: rgba(0,0,0,0.3);">
+        <p style="color: #00ffcc; text-transform: uppercase; font-size: 0.8rem; margin:0 0 5px 0;">Trust Level</p>
+        <p style="margin: 0; color: white; font-weight: 700; font-size: 1.1rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 1rem; margin-bottom: 1rem;">Zero-Trust Biometric Secure ✓</p>
+        
+        <p style="color: #00ffcc; text-transform: uppercase; font-size: 0.8rem; margin:0 0 5px 0;">Identity Status</p>
+        <p style="margin: 0; color: white; line-height: 1.4;">Personal information encrypted &amp; stored consistently with Fortress ID protocols.</p>
+        
+        <button id="logout-btn" style="margin-top: 2rem; width: 100%; background: rgba(255, 60, 60, 0.1); border: 1px solid #ff3c3c; color: #ff3c3c; padding: 0.6rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.8rem;">
+           Log Out / Reset Identity
+        </button>
+      </div>
+
+      <button class="btn-primary" id="close-profile" style="max-width: 350px;">Return to FLUX</button>
+
+  `;
+  document.getElementById('app').appendChild(d);
+  document.getElementById('close-profile').addEventListener('click', () => {
+    document.getElementById('profile-view').remove();
+  });
+  document.getElementById('logout-btn').addEventListener('click', () => {
+    localStorage.clear();
+    location.reload();
+  });
+  document.getElementById('prof-popup-edit').addEventListener('click', () => {
+     document.getElementById('profile-view').remove();
+     renderProfileEdit();
+  });
+}
+
+
+
+// ============================================================
+// ENTRY MODULE — GREEN CARPET
+// ============================================================
+function renderEntryModule() {
+  const homeFeed = document.getElementById('home-feed');
+  if (homeFeed) homeFeed.classList.add('hidden');
+
+  let entryFeed = document.getElementById('entry-view');
+  if (!entryFeed) {
+    entryFeed = document.createElement('div');
+    entryFeed.id = 'entry-view';
+    entryFeed.className = 'main-feed animated';
+    const bottomNav = document.querySelector('.bottom-nav');
+    bottomNav.parentNode.insertBefore(entryFeed, bottomNav);
+  }
+  entryFeed.classList.remove('hidden');
+
+  if (!mockEntryState.bookedSlot) {
+    // Show nudge if Guest
+    const isGuest = localStorage.getItem('flux_user') === 'GUEST';
+    if (isGuest) {
+       const nudge = document.createElement('div');
+       nudge.style = "background: rgba(0, 255, 204, 0.1); border: 1px solid rgba(0, 255, 204, 0.3); padding: 0.8rem; border-radius: 12px; margin-bottom: 1.5rem; text-align: center; color: #00ffcc; font-size: 0.8rem; font-weight: 500; font-family: var(--font-primary);";
+       nudge.innerHTML = `⚡ Register your <b style="color:#fff;">Fortress ID</b> to earn and save 500 Entry Points!`;
+       entryFeed.prepend(nudge);
+    }
+    renderTimeSlots(entryFeed);
+  } else {
+
+    renderLockout(entryFeed);
+  }
+}
+
+function renderTimeSlots(container) {
+  // Show all slots, but handle FULL ones visually
+  const availableKeys = Object.keys(SLOT_CAPACITY);
+
+
+  const slotCards = availableKeys.map(key => {
+    const cap = SLOT_CAPACITY[key];
+    const pct = Math.round((cap.booked / cap.max) * 100);
+    const remaining = cap.max - cap.booked;
+    const almostFull = pct >= 80;
+
+    const isFull = cap.booked >= cap.max;
+    
+    return `
+      <div class="promo-card slot-card ${isFull ? 'slot-full' : ''}" data-time="${key}"
+           style="padding: 1rem; --card-theme: ${cap.isPeak ? '#ffaa00' : '#00ff66'}; --card-bg: ${cap.isPeak ? 'rgba(40,25,0,0.4)' : 'rgba(0,26,10,0.4)'}; 
+           ${isFull ? 'opacity: 0.4; filter: grayscale(1); cursor: not-allowed; pointer-events: none;' : ''}">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px;">
+          <p style="color: ${cap.isPeak ? '#ffaa00' : '#00ff66'}; margin: 0; font-weight: 700;">${cap.label}</p>
+          <span style="font-size:0.7rem; color: ${isFull ? '#888' : (almostFull ? '#ff6b35' : 'var(--text-muted)')};">${isFull ? 'FULL' : `${remaining} left`}</span>
+        </div>
+        <p style="font-size: 0.78rem; margin: 3px 0 8px 0; color: var(--text-muted);">${cap.points > 0 ? `+${cap.points} FLUX Points 🎖️` : 'Standard Entry'}</p>
+        <!-- Capacity bar -->
+        <div style="background: rgba(255,255,255,0.08); border-radius: 4px; height: 4px; margin-bottom: 10px; overflow: hidden;">
+          <div style="height:100%; width:${pct}%; background: ${isFull ? '#444' : (almostFull ? '#ff6b35' : (cap.isPeak ? '#ffaa00' : '#00ff66'))}; border-radius: 4px; transition: width 0.5s;"></div>
+        </div>
+        <button class="btn-primary btn-book" ${isFull ? 'disabled' : ''}
+                style="padding: 0.5rem 1rem; font-size: 0.8rem; ${isFull ? 'background: #222; border-color: #333; color: #666;' : (cap.isPeak ? 'background:#ffaa00; border-color:#ffaa00; color:black;' : '')}">
+          ${isFull ? 'Capacity Full' : 'Book Arrival Window'}
+        </button>
+      </div>`;
+
+  }).join('');
+
+  container.innerHTML = `
+    <h2 style="color: #00ff66; margin: 3 0 0 0; text-transform: uppercase; letter-spacing:0.08em;">Choose Your Window</h2>
+    <p style="color: var(--text-muted); margin: 0; font-size: 0.85rem; line-height: 1.4;">Select when you'll arrive at the stadium. To prevent crowds, each window has a strict entry limit.</p>
+    
+    <div class="promo-card" style="margin: 1.5rem 0; border-color: #00ff66; background: rgba(0, 255, 102, 0.05); padding: 1.5rem;">
+        <h3 style="color: #00ff66; margin: 0 0 0.5rem 0; font-size: 1rem; text-transform: uppercase;">Live Proximity Protocol</h3>
+        <p style="font-size: 0.8rem; line-height: 1.4; margin-bottom: 1rem;">Syncing with <strong style="color:#fff;">Google Maps Platform</strong> for real-time stadium geo-fencing and crowd-flow optimization.</p>
+        
+        <div id="google-maps-engine" style="width: 100%; height: 160px; background: #080808; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+             <!-- Simulated Google Maps Engine (Dark Mode) -->
+             <div style="position: absolute; inset: 0; opacity: 0.3; background-image: radial-gradient(circle at 20% 30%, #333 1px, transparent 1px), radial-gradient(circle at 60% 70%, #333 1.5px, transparent 1px); background-size: 40px 40px;"></div>
+             <div style="position: relative; z-index: 5; text-align: center;">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#00ff66" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                <p style="margin: 5px 0 0 0; font-size: 0.7rem; color: #00ff66; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700;">Maps Engine Active</p>
+             </div>
+             <div style="position: absolute; bottom: 8px; right: 8px; opacity: 0.6;">
+                <img src="https://www.gstatic.com/images/branding/googlelogo/2x/googlelogo_light_color_92x30dp.png" alt="Google" style="height: 12px;">
+             </div>
+        </div>
+    </div>
+
+    <div class="slot-grid">${slotCards}</div>
+  `;
+
+  container.querySelectorAll('.btn-book').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const card = e.currentTarget.closest('[data-time]');
+      const slotKey = card ? card.getAttribute('data-time') : null;
+      if (!slotKey) return;
+      
+      // Increment booked count
+      SLOT_CAPACITY[slotKey].booked = Math.min(SLOT_CAPACITY[slotKey].booked + 1, SLOT_CAPACITY[slotKey].max);
+      mockEntryState.bookedSlot = SLOT_CAPACITY[slotKey].label;
+      logFirebaseEvent('entry_slot_booked', { slotType: slotKey });
+      mockEntryState.unlockTime = Date.now() + (15 * 1000); // 15s demo countdown
+      mockEntryState.isLate = false;
+      saveEntryState();
+      renderLockout(container);
+
+    });
+  });
+}
+
+function renderLockout(container) {
+  container.innerHTML = `
+     <div class="lockout-screen animated">
+        <!-- High-Fidelity Heads Up Notice -->
+        <div style="width: 100%; background: #ffaa00; color: #000; padding: 0.8rem; border-radius: 12px; margin-bottom: 2rem; text-align: center; font-weight: 700; font-size: 0.85rem; box-shadow: 0 10px 20px rgba(0,0,0,0.3);">
+           ⚠️ HEADS UP: Please reach the required proximity range for enabling the QR code otherwise QR won't be enabled.
+        </div>
+
+        <p style="color: rgba(255,255,255,0.25); text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.2em; margin-bottom: 0.5rem; text-align: center;">Secure Session Active</p>
+        <h2 style="color: #fff; margin: 0 0 2rem 0; font-size: 1.2rem; font-weight: 300; text-align: center;">PROXIMITY SCAN FOR <span style="color: var(--accent); font-weight: 700;">${(localStorage.getItem('flux_user') || 'GUEST').toUpperCase()}</span></h2>
+
+        <h2 style="color: #00e5ff; text-transform: uppercase; margin: 0 0 0.5rem 0; font-size: 1.5rem; letter-spacing: 0.08em;">Transit Mode</h2>
+
+        <p style="color: var(--text-muted); font-size: 0.88rem; margin: 0 0 1.5rem 0;">Sleeping Key mapped to: <b style="color: #fff;">${mockEntryState.bookedSlot}</b>. Stand by for unlock.</p>
+        
+        <div class="qr-payload-container">
+           <div class="secure-qr-box" style="background: rgba(10,10,20,0.6);">
+              <div class="scanline"></div>
+              <p style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.15); font-size:0.7rem; font-family:var(--font-heading); text-transform:uppercase; letter-spacing:0.15em;">Locked</p>
+           </div>
+           <h1 class="countdown-timer" id="entry-timer">00:15</h1>
+           <p style="color: var(--text-muted); font-size: 0.75rem; margin-top: 0.4rem;">Fast Lane unlocks at zero</p>
+        </div>
+
+        <div class="promo-card info-banner" style="border-color: #ffaa00; background: rgba(50, 30, 0, 0.4); padding: 1rem; margin-top: 1.5rem;">
+           <p style="color: #ffaa00; font-weight: 700; margin: 0 0 6px 0; text-transform: uppercase; font-size: 0.78rem;">ℹ️ Heads Up</p>
+           <p style="color: rgba(255,255,255,0.85); font-size: 0.82rem; margin: 0; line-height: 1.6;">Your code encrypts and refreshes every 3 seconds once unlocked. Show it live at the gate — screenshots won't capture the active payload.</p>
+        </div>
+
+        <div class="promo-card" style="border-color: rgba(255,255,255,0.08); background: rgba(10,10,20,0.5); padding: 1rem; margin-top: 1rem;">
+           <p style="color: rgba(255,180,0,0.8); font-weight: 700; margin: 0 0 6px 0; text-transform: uppercase; font-size: 0.75rem;">⚠️ Miss Your Window?</p>
+           <p style="color: rgba(255,255,255,0.65); font-size: 0.8rem; margin: 0; line-height: 1.6;">Your Green Pass turns Grey if you arrive outside your slot. You'll join the standard queue and lose Fast Lane access for this event.</p>
+        </div>
+     </div>
+  `;
+
+  if (mockEntryState.timerInterval) clearInterval(mockEntryState.timerInterval);
+
+  mockEntryState.timerInterval = setInterval(() => {
+    const diff = mockEntryState.unlockTime - Date.now();
+
+      if (diff <= 0) {
+      clearInterval(mockEntryState.timerInterval);
+      mockEntryState.timerInterval = null;
+      renderActivationNotice(container);
+      return;
+    }
+
+    const timerEl = document.getElementById('entry-timer');
+    if (!timerEl) { clearInterval(mockEntryState.timerInterval); return; }
+
+    const totalSec = Math.floor(diff / 1000);
+    const ms = Math.floor((diff % 1000) / 10);
+    const ss = totalSec % 60;
+    const mm = Math.floor(totalSec / 60) % 60;
+    timerEl.innerText = `${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}.${String(ms).padStart(2,'0')}`;
+  }, 50);
+}function renderActivationNotice(container) {
+  let autoTimer = null;
+  const triggerVerification = () => {
+    if (autoTimer) clearTimeout(autoTimer);
+    checkGeofenceAndUnlock(container);
+  };
+
+  container.innerHTML = `
+    <div class="lockout-screen animated">
+      <!-- Heads Up Notice Bar -->
+      <div style="width: 100%; background: #ffaa00; color: #000; padding: 0.8rem; border-radius: 12px; margin-bottom: 1.5rem; text-align: center; font-weight: 700; font-size: 0.85rem; box-shadow: 0 10px 20px rgba(0,0,0,0.3);">
+         ⚠️ HEADS UP: Please reach the required proximity range for enabling the QR code otherwise QR won't be enabled.
+      </div>
+
+      <h2 style="color: #fff; text-transform: uppercase; margin: 0 0 0.8rem 0; font-size: 1.3rem;">🚨 Security Check</h2>
+      <p style="color: rgba(255,255,255,0.7); font-size: 0.95rem; margin-bottom: 1.5rem; line-height: 1.4;">
+        To activate your <b>Fast Lane QR</b>, we must verify your proximity to the stadium gate.
+      </p>
+
+      <div class="promo-card" style="border-color: #ffaa00; background: rgba(10,10,20,0.4); text-align: left; padding: 1.2rem;">
+        <p style="color: #ffaa00; font-weight: 700; font-size: 0.8rem; margin-bottom: 8px; text-transform: uppercase;">Zero-Trust Verification</p>
+        <p style="color: rgba(255,255,255,0.6); font-size: 0.8rem; line-height: 1.6; margin: 0;">
+          Physical proximity ensures that only fans physically present at the gate can claim their slot. Evaluation demo bypass is active.
+        </p>
+      </div>
+
+      <div style="margin-top: 2rem; width: 100%;">
+        <button class="btn-primary" id="start-geo-verification" style="background: #ffaa00; color: black; border-color: #ffaa00;">
+          Verify & Unlock QR
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('start-geo-verification').addEventListener('click', triggerVerification);
+  
+  // Autonomous demo trigger
+  autoTimer = setTimeout(triggerVerification, 2500);
+}
+
+function checkGeofenceAndUnlock(container) {
+  const stadium = STADIUMS[0];
+  // Start with a realistic simulator distance for the demo
+  let geoResult = { mode: 'demo', dist: '5.4', stadium: stadium.name };
+
+  // Trigger real location check (in bg) to update distance label if possible
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition((pos) => {
+      const dist = haversineKm(pos.coords.latitude, pos.coords.longitude, stadium.lat, stadium.lng);
+      geoResult.dist = dist.toFixed(1);
+      if (dist <= 1.0) geoResult.mode = 'real';
+      
+      // Update label live
+      const distLabel = document.getElementById('proximity-dist-label');
+      if (distLabel) distLabel.innerHTML = `📍 Distance: ${geoResult.dist} km from nearest stadium.`;
+    }, (err) => {
+       // Fallback already set to 5.4 for demo
+       console.warn('GPS restricted, using demo proximity.');
+    }, { timeout: 3000 });
+  }
+
+  // Instant render
+  renderActivePass(container, geoResult);
+}
+
+function renderActivePass(container, geoContext) {
+  const validUntil = Date.now() + (60 * 1000); // 60s demo = real 10-min window
+  let qrRotateInterval = null;
+  let validityInterval = null;
+  let qrSeed = Date.now();
+
+  const isDemo = geoContext.mode === 'demo';
+  const slotCode = (mockEntryState.bookedSlot || 'PASS').replace(/[^A-Z0-9]/gi, '').toUpperCase().substring(0, 8);
+  const uniqueId = Math.floor(Math.random() * 90000 + 10000);
+
+  container.innerHTML = `
+    <div class="lockout-screen animated">
+      <!-- Success Status Header (Pixel-perfect mirror of the Verification Bar) -->
+      <div style="width: 100%; background: #00ff66; color: #000; padding: 0.8rem; border-radius: 12px; margin-bottom: 2rem; text-align: center; font-weight: 700; font-size: 0.85rem; box-shadow: 0 10px 20px rgba(0,0,0,0.3);">
+         ⚡ FAST LANE ACTIVE: Your secure entry key is verified.
+      </div>
+
+      <p style="color: rgba(255,255,255,0.25); text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.2em; margin-bottom: 0.5rem;">Identity Match Confirmed</p>
+      <h2 style="color: #fff; margin: 0 0 2.5rem 0; font-size: 1.2rem; font-weight: 300;">AUTHENTICATED PASS FOR <span style="color: #00ff66; font-weight: 700;">${(localStorage.getItem('flux_user') || 'GUEST').toUpperCase()}</span></h2>
+
+
+      <div class="qr-payload-container" style="width: 100%;">
+        <!-- Centered QR Box -->
+        <div class="secure-qr-box active" id="active-qr-box"
+             style="width: 80vw; max-width: 320px; aspect-ratio: 1/1; height: auto; border-radius: 24px; padding: 1.5rem; position: relative; margin: 0 auto; background: rgba(0, 255, 102, 0.03); border: 1px solid rgba(0, 255, 102, 0.3); box-shadow: 0 0 30px rgba(0,255,102,0.1);">
+          <div class="live-qr" id="live-qr-pattern" style="width: 100%; height: 100%;"></div>
+          <div class="scanline"></div>
+        </div>
+        
+        <p style="color:rgba(255,255,255,0.4); font-size:0.75rem; font-family:monospace; letter-spacing:0.22em; margin-top:2.5rem;">FLUX·${slotCode}·${uniqueId}</p>
+        <p style="color: #00ff66; font-size: 0.85rem; margin: 10px 0; font-weight: 500;" id="qr-refresh-label">Refreshing in 3s</p>
+
+        <!-- Dynamic Validity Pill -->
+        <div style="margin: 0 auto; margin-top:1.5rem; padding:0.6rem 2.5rem; border-radius:30px; background:rgba(0,255,102,0.1); border:1px solid rgba(0,255,102,0.4); display: inline-block;">
+          <p style="color:#00ff66; font-size:1.1rem; margin:0; font-weight:800;">Valid for: <span id="validity-timer">01:00</span></p>
+        </div>
+
+        <!-- Expanded Accent Divider (Full-Width boundary) -->
+        <div id="proximity-dist-label" style="margin-top: 3.5rem; color: #ffaa00; font-size: 1rem; font-weight: 600; border-top: 2px solid rgba(255,170,0,0.2); padding-top: 1.5rem; width: 100%;">
+           📍 Distance: ${geoContext.dist || '??'} km from nearest stadium.
+        </div>
+      </div>
+
+      <button class="btn-primary" id="reset-entry-btn" style="margin-top:2.5rem; background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); color: #888; font-size: 0.75rem;">Reset Demo State</button>
+    </div>
+  `;
+
+  // === Inject initial QR ===
+  const injectQR = () => {
+    const el = document.getElementById('live-qr-pattern');
+    if (el) el.innerHTML = generateQRSVG(qrSeed);
+  };
+  injectQR();
+
+  // QR rotation every 3 seconds
+  let countdown = 3;
+  qrRotateInterval = setInterval(() => {
+    countdown--;
+    const label = document.getElementById('qr-refresh-label');
+    if (!label) { clearInterval(qrRotateInterval); return; }
+    if (countdown <= 0) {
+      countdown = 3;
+      qrSeed = Date.now(); // New seed = visually new QR
+      injectQR();
+    }
+    label.textContent = `Refreshing in ${countdown}s`;
+  }, 1000);
+
+  // Validity countdown
+  validityInterval = setInterval(() => {
+    const remaining = Math.max(0, Math.floor((validUntil - Date.now()) / 1000));
+    const vEl = document.getElementById('validity-timer');
+    if (!vEl) { clearInterval(validityInterval); clearInterval(qrRotateInterval); return; }
+    const vm = Math.floor(remaining / 60);
+    const vs = remaining % 60;
+    vEl.textContent = `${String(vm).padStart(2,'0')}:${String(vs).padStart(2,'0')}`;
+    if (remaining <= 0) {
+      clearInterval(validityInterval);
+      clearInterval(qrRotateInterval);
+      renderExpiredPass(container); // === LATE PENALTY ===
+    }
+  }, 1000);
+
+  document.getElementById('reset-entry-btn').addEventListener('click', () => {
+    clearInterval(qrRotateInterval);
+    clearInterval(validityInterval);
+    mockEntryState.bookedSlot = null;
+    mockEntryState.unlockTime = 0;
+    renderEntryModule();
+  });
+}
+
+function renderExpiredPass(container) {
+  container.innerHTML = `
+     <div class="lockout-screen animated">
+        <h2 style="color: #888; text-transform: uppercase; margin: 0 0 0.5rem 0;">🔒 Pass Expired</h2>
+        <p style="color: var(--text-muted); font-size: 0.88rem; margin: 0 0 2rem 0;">Your 10-minute Green Carpet window has closed.</p>
+
+        <div class="secure-qr-box" style="background: rgba(30,30,30,0.8); border: 2px solid #444; width:220px; height:160px; border-radius:10px; display:flex; align-items:center; justify-content:center;">
+           <p style="color: #555; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.15em;">Grey Pass</p>
+        </div>
+
+        <div class="promo-card" style="border-color: #555; background: rgba(20,20,20,0.6); padding: 1rem; margin-top: 1.5rem;">
+           <p style="color: #aaa; font-weight: 700; font-size: 0.8rem; margin: 0 0 5px 0;">Standard Queue Only</p>
+           <p style="font-size: 0.82rem; margin: 0 0 1rem 0; color: rgba(255,255,255,0.5); line-height: 1.6;">You missed the Fast Lane window. Please proceed to the standard entry gate. Book earlier next time for rewards!</p>
+           <button class="btn-primary" id="rebook-btn" style="background: #444; border-color: #666;">Book a New Slot</button>
+        </div>
+     </div>
+  `;
+  document.getElementById('rebook-btn').addEventListener('click', () => {
+    mockEntryState.bookedSlot = null;
+    mockEntryState.unlockTime = 0;
+    saveEntryState();
+    renderEntryModule();
+  });
+}
+
+// Start sequence
+initApp();
+/**
+ * AVATAR ENGINE & PICKER
+ */
+function getAvatarTheme(idx) {
+  const themes = [
+    { bg: 'linear-gradient(135deg, #00ff66, #00d2ff)', color: 'rgba(255,255,255,0.9)' }, // Matrix Green
+    { bg: 'linear-gradient(135deg, #ff00ff, #7000ff)', color: 'rgba(255,255,255,0.9)' }, // Cyber Magenta
+    { bg: 'linear-gradient(135deg, #ffaa00, #ff4e00)', color: 'rgba(255,255,255,0.9)' }, // Gold Pulse
+    { bg: 'linear-gradient(135deg, #00e5ff, #004a99)', color: 'rgba(255,255,255,0.9)' }  // Arctic Blue
+  ];
+  return themes[idx] || themes[0];
+}
+
+function getAvatarHTML(idx, size) {
+  const theme = getAvatarTheme(idx);
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="${theme.color}"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>`;
+}
+
+function showAvatarPicker(currentIdx, onSelect) {
+  const overlay = document.createElement('div');
+  overlay.className = 'profile-overlay animated';
+  overlay.style = "position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:3000; display:flex; flex-direction:column; align-items:center; justify-content:center; padding: 2rem;";
+
+  overlay.innerHTML = `
+    <h2 style="color: var(--accent); margin-bottom: 2rem; text-transform: uppercase; letter-spacing: 0.1em;">Choose Your Preset</h2>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+      ${[0, 1, 2, 3].map(i => `
+        <div class="avatar-option" data-idx="${i}" style="width: 80px; height: 80px; border-radius: 50%; background: ${getAvatarTheme(i).bg}; cursor: pointer; border: ${i === currentIdx ? '4px solid #fff' : '2px solid rgba(255,255,255,0.1)'}; transition: 0.3s; display:flex; align-items:center; justify-content:center;">
+           ${getAvatarHTML(i, 40)}
+        </div>
+      `).join('')}
+    </div>
+    <button id="close-picker" style="margin-top: 3rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #888; padding: 0.8rem 2rem; border-radius: 30px; cursor: pointer;">Cancel</button>
+  `;
+
+  document.body.appendChild(overlay);
+
+  overlay.querySelectorAll('.avatar-option').forEach(opt => {
+    opt.addEventListener('click', () => {
+      onSelect(parseInt(opt.getAttribute('data-idx')));
+      overlay.remove();
+    });
+  });
+
+  document.getElementById('close-picker').addEventListener('click', () => overlay.remove());
+}

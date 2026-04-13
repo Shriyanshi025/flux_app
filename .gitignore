@@ -1,0 +1,24 @@
+# Fortress Protocol: Lightweight Submission Rules
+node_modules/
+dist/
+build/
+.env
+.DS_Store
+
+# Google Antigravity/Vite Artifacts
+.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Obsolete Environment Artifacts
+*.log
+*.tmp
+*.bak
+dump.rdb
+
+# Exclude legacy flutter remains (if any)
+.dart_tool/
+.packages
+.pub-cache/
+pubspec.lock
