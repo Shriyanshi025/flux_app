@@ -41,14 +41,16 @@ body.theme-blue {
 #app {
   width: 100%;
   max-width: var(--max-app-width);
+  min-height: 100vh;
   margin: 0 auto;
-  padding: var(--screen-pad-x);
+  padding: 0; /* Remove padding to eliminate background bleed */
   display: flex;
   flex-direction: column;
   position: relative;
   z-index: 10;
+  background: var(--bg-core); /* Ensure root is opaque */
   transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: none; /* Strip the bright border glitch */
+  box-shadow: none;
 }
 
 
