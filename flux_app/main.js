@@ -990,12 +990,12 @@ function renderTimeSlots(container) {
   }).join('');
 
   container.innerHTML = `
-    <h2 style="color: #00ff66; margin: 3 0 0 0; text-transform: uppercase; letter-spacing:0.08em;">Choose Your Window</h2>
-    <p style="color: var(--text-muted); margin: 0; font-size: 0.85rem; line-height: 1.4;">Select when you'll arrive at the stadium. To prevent crowds, each window has a strict entry limit.</p>
+    <h2 style="color: #00ff66;">Choose Your Window</h2>
+    <p style="color: var(--text-muted); margin: 0; font-size: 0.85rem; line-height: 1.4; margin-bottom: 2rem;">Select when you'll arrive at the stadium. To prevent crowds, each window has a strict entry limit.</p>
     
-    <div class="promo-card" style="margin: 1.5rem 0; border-color: #00ff66; background: rgba(0, 255, 102, 0.05); padding: 1.5rem;">
-        <h3 style="color: #00ff66; margin: 0 0 0.5rem 0; font-size: 1rem; text-transform: uppercase;">Live Proximity Protocol</h3>
-        <p style="font-size: 0.8rem; line-height: 1.4; margin-bottom: 1rem;">Syncing with <strong style="color:#fff;">Google Maps Platform</strong> for real-time stadium geo-fencing and crowd-flow optimization.</p>
+    <div class="promo-card" id="maps-engine-card" style="border-color: #00ff66; background: rgba(0, 255, 102, 0.05); padding: 2rem; margin-bottom: 2.5rem;">
+        <h3 style="color: #00ff66; margin: 0 0 0.8rem 0; font-size: 1.2rem; text-transform: uppercase;">Live Proximity Protocol</h3>
+        <p style="font-size: 0.9rem; line-height: 1.6; margin-bottom: 1.5rem;">Syncing with <strong style="color:#fff;">Google Maps Platform</strong> for real-time stadium geo-fencing and crowd-flow optimization.</p>
         
         <div id="google-maps-engine" style="width: 100%; height: 160px; background: #080808; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center;">
              <!-- Simulated Google Maps Engine (Dark Mode) -->
