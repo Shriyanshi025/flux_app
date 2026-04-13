@@ -38,20 +38,14 @@ body.theme-blue {
 
 #app-container {
   width: 100%;
-  max-width: 450px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: clamp(1.2rem, 5vw, 2rem);
+  padding: var(--screen-pad-x);
   display: flex;
   flex-direction: column;
   position: relative;
   z-index: 10;
-  transition: max-width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-@media (min-width: 1024px) {
-  #app-container {
-    max-width: 800px;
-  }
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 
@@ -281,7 +275,7 @@ input:focus {
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: 450px;
+  max-width: 1200px;
   margin: 0 auto;
   height: 100vh;
   box-sizing: border-box;
@@ -868,11 +862,12 @@ input:focus {
 
 .market-feed {
   padding: 120px var(--screen-pad-x) 100px;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 1.5rem;
-  max-width: 600px;
+  max-width: 1200px;
   margin: 0 auto;
+  width: 100%;
 }
 
 .stand-card {
