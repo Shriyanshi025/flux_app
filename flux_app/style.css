@@ -527,7 +527,7 @@ input:focus {
 
 /* === ENTRY MODULE STYLES === */
 #entry-view {
-  padding: 85px var(--screen-pad-x) 100px;
+  padding: 110px var(--screen-pad-x) 100px;
   max-width: 1200px;
   margin: 0 auto;
   width: 100%;
