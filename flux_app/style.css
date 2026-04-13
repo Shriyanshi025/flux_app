@@ -13,6 +13,7 @@
   --font-primary: 'Work Sans', sans-serif;
   --font-logo: 'Outfit', sans-serif;
   --screen-pad-x: clamp(1rem, 4.5vw, 1.5rem);
+  --max-app-width: 1200px;
 }
 
 
@@ -38,7 +39,7 @@ body.theme-blue {
 
 #app-container {
   width: 100%;
-  max-width: 1200px;
+  max-width: var(--max-app-width);
   margin: 0 auto;
   padding: var(--screen-pad-x);
   display: flex;
@@ -275,7 +276,7 @@ input:focus {
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: 1200px;
+  max-width: var(--max-app-width);
   margin: 0 auto;
   height: 100vh;
   box-sizing: border-box;
@@ -528,7 +529,7 @@ input:focus {
 /* === ENTRY MODULE STYLES === */
 #entry-view {
   padding: 110px var(--screen-pad-x) 100px;
-  max-width: 1200px;
+  max-width: var(--max-app-width);
   margin: 0 auto;
   width: 100%;
 }
@@ -689,21 +690,19 @@ input:focus {
 /* === RESPONSIVE TABLET / DESKTOP OPTIMIZATIONS === */
 @media (min-width: 768px) {
   #home-container {
-    max-width: 800px;
+    max-width: var(--max-app-width);
   }
-
 
   .auth-box {
     width: 100%;
-    max-width: 450px;
+    max-width: 500px;
     margin: 0 auto;
   }
 
   .main-feed {
-    padding-top: 2rem;
+    /* padding-top removed to avoid breaking module-specific headers */
     padding-bottom: 120px;
   }
-
 
   .promo-card {
     width: 100%;
@@ -711,9 +710,8 @@ input:focus {
     min-height: auto;
   }
 
-
   .bottom-nav {
-    max-width: 450px;
+    max-width: 600px;
     left: 50%;
     transform: translateX(-50%);
     border-radius: 30px 30px 0 0;
@@ -885,7 +883,7 @@ input:focus {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 1.5rem;
-  max-width: 1200px;
+  max-width: var(--max-app-width);
   margin: 0 auto;
   width: 100%;
 }
