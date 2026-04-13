@@ -413,7 +413,7 @@ function renderHomePage() {
     }, 3000);
   };
 }
-
+function bindHomeEvents() {
   // Flash Market Bindings (Card and Nav)
   const flashMarketCard = document.querySelector('.card-halftime button');
   if (flashMarketCard) flashMarketCard.addEventListener('click', () => {
