@@ -48,6 +48,7 @@ body.theme-blue {
   position: relative;
   z-index: 10;
   transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: none; /* Strip the bright border glitch */
 }
 
 
@@ -537,9 +538,16 @@ input:focus {
 
 /* === ENTRY MODULE STYLES === */
 #entry-view {
-  padding: 110px 0 100px; /* Internal padding only */
+  padding: 160px 0 100px; /* Boosted top padding to fix nav overlap */
   max-width: 100%;
   margin: 0 auto;
+  width: 100%;
+}
+
+.entry-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* Force 2x2 Grid */
+  gap: 1.5rem;
   width: 100%;
 }
 
@@ -704,7 +712,7 @@ input:focus {
 }
 
 .main-feed {
-  padding-top: 2rem;
+  padding-top: 0.5rem; /* Closer to greeting */
   padding-bottom: 120px;
 }
 

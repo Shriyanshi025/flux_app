@@ -312,8 +312,16 @@ function checkExistingUser() {
 // ============================================================
 // HOME PAGE
 // ============================================================
-function renderHomePage() {
-  // 1. Pre-load the drone asset to ensure zero flickering or 'parts-by-parts' rendering
+  const hasPlayedDrone = sessionStorage.getItem('flux_drone_played');
+
+  if (hasPlayedDrone) {
+    document.body.classList.add('theme-blue');
+    document.body.classList.remove('theme-magenta');
+    const appEl = document.querySelector('#app');
+    renderHomeHTML(appEl);
+    return;
+  }
+
   const preloadImg = new Image();
   preloadImg.src = '/drone_shot.png';
   
@@ -331,8 +339,14 @@ function renderHomePage() {
     setTimeout(() => {
       const drone = document.getElementById('intro-drone');
       if (drone) drone.remove();
+      sessionStorage.setItem('flux_drone_played', 'true');
+      renderHomeHTML(appEl);
+    }, 3000);
+  };
+}
 
-      appEl.innerHTML = `
+function renderHomeHTML(appEl) {
+  appEl.innerHTML = `
         <div id="home-container" class="animated">
           
           <!-- Header -->
@@ -399,9 +413,6 @@ function renderHomePage() {
               Exit
             </div>
           </div>
-        </div>
-      `;
-
       bindHomeEvents();
       renderSideNav(); 
       initSmartHomeLogic(); 
@@ -954,7 +965,9 @@ function renderEntryModule() {
 
       <!-- Scrollable content -->
       <div id="entry-view" class="main-feed animated">
-        <!-- slots injected here -->
+        <div class="entry-grid" id="entry-grid-target">
+           <!-- slots injected here -->
+        </div>
       </div>
     </div>
   `;
