@@ -351,13 +351,23 @@ input:focus {
   width: 100%;
   max-height: 100vh;
   overflow-y: auto !important;
-  padding: 80px var(--screen-pad-x) 120px var(--screen-pad-x) !important; /* Fixed padding for stick navs */
+  padding: 55px var(--screen-pad-x) 120px var(--screen-pad-x) !important; /* Calibrated 1.5cm spacing */
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
   box-sizing: border-box;
   scrollbar-width: thin;
   scrollbar-color: rgba(255,255,255,0.1) transparent;
+}
+
+.home-greeting {
+  padding: 85px var(--screen-pad-x) 0; /* Clear top-nav */
+  font-family: var(--font-logo);
+  font-size: 1.1rem;
+  font-weight: 300;
+  letter-spacing: 0.15em;
+  color: var(--text-muted);
+  margin-bottom: 0px; /* Let the feed padding control the gap */
 }
 
 #home-feed.main-feed {
@@ -1083,21 +1093,19 @@ input:focus {
 
 /* === THE CURVED DECK (Profile & Menu Overlays) === */
 .curved-deck {
-  background: rgba(10, 10, 12, 0.9); /* Higher opacity for isolation */
-  backdrop-filter: blur(60px);
-  -webkit-backdrop-filter: blur(60px);
+  background: #0d0d12 !important; /* Solid Obsidian Theme - No transparency */
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 40px;
-  padding: 2.5rem;
+  padding: 3.5rem 4rem; /* Substantial padding */
   width: 100%;
-  max-width: 500px; /* Slightly wider for desktop */
-  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.8);
+  max-width: 650px; /* Dominant Presence */
+  box-shadow: 0 50px 100px rgba(0, 0, 0, 0.9);
   display: flex;
   flex-direction: column;
   align-items: center;
   position: relative;
   overflow: hidden;
-  z-index: 9999; /* Priority atop all layers */
+  z-index: 9999;
   animation: deckSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
