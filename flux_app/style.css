@@ -38,7 +38,7 @@ body.theme-blue {
   background: radial-gradient(circle at top center, #002244 0%, var(--bg-core) 70%, #001122 150%);
 }
 
-# app {
+#app {
   width: 100%;
   max-width: var(--max-app-width);
   min-height: 100vh;

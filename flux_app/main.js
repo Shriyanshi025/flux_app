@@ -181,7 +181,7 @@ function generateQRSVG(seed) {
 // ============================================================
 // LOGIN / REGISTER SCREEN
 // ============================================================
-function initApp() {
+function renderAuthPage() {
   document.querySelector('#app').innerHTML = `
     <div id="app-container">
       <h1 class="logo">FLUX</h1>
