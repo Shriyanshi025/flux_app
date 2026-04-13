@@ -21,6 +21,59 @@ let mockEntryState = {
   timerInterval: null
 };
 
+// --- FLASH MARKET: Simulation State ---
+let mockMarketData = [
+  { id: 'burgers-s4', name: 'Sector 4 Burgers', type: 'Main', wait: 8, inventory: 95, priceBase: 12.00, priceCurrent: 12.00, sector: 4, trend: 'stable' },
+  { id: 'tacos-g-d', name: 'Gate D Tacos', type: 'Exotic', wait: 3, inventory: 88, priceBase: 10.00, priceCurrent: 10.00, sector: 2, trend: 'stable' },
+  { id: 'pizza-w-w', name: 'West Wing Pizza', type: 'Main', wait: 12, inventory: 70, priceBase: 14.00, priceCurrent: 14.00, sector: 1, trend: 'stable' },
+  { id: 'dogs-e-e', name: 'East End Dogs', type: 'Quick', wait: 5, inventory: 99, priceBase: 8.00, priceCurrent: 8.00, sector: 6, trend: 'stable' }
+];
+
+let marketInterval = null;
+
+function updateMarketSimulation() {
+  mockMarketData.forEach(item => {
+    // Random fluctuation: Wait time changes +/- 2 mins
+    const deltaWait = Math.floor(Math.random() * 5) - 2;
+    item.wait = Math.max(1, Math.min(25, item.wait + deltaWait));
+    
+    // Inventory slowly drops
+    if (Math.random() > 0.7) item.inventory = Math.max(5, item.inventory - 1);
+    
+    // Trend indicator
+    if (deltaWait > 0) item.trend = 'up';
+    else if (deltaWait < 0) item.trend = 'down';
+    else item.trend = 'stable';
+    
+    // Dynamic Arbitrage Trigger for "Bribe" prices
+    // If wait > 15m, price drops. If wait < 5m, price stays base.
+    if (item.wait > 18) {
+       item.priceCurrent = (item.priceBase * 0.7).toFixed(2); // 30% Off Bribe
+    } else {
+       item.priceCurrent = item.priceBase.toFixed(2);
+    }
+  });
+
+  // If we are currently in the Flash Market view, re-render it
+  if (document.getElementById('market-feed')) {
+    updateMarketDisplay();
+  }
+  
+  // Watchtower: Check if Sector 4 (User Sector) is crushed
+  const s4 = mockMarketData.find(m => m.id === 'burgers-s4');
+  if (s4 && s4.wait > 15) {
+     checkForArbitrageDeals(s4);
+  }
+}
+
+function checkForArbitrageDeals(congestedStand) {
+  // Find a nearby stand with low wait times
+  const dealStand = mockMarketData.find(m => m.wait < 6 && m.id !== congestedStand.id);
+  if (dealStand) {
+    showFlashDealAlert(congestedStand, dealStand);
+  }
+}
+
 // === GOOGLE SERVICES: FIREBASE ANALYTICS (Simulated) ===
 const firebaseConfig = { projectId: 'engaged-hash-492618-d8', appId: 'flux-fortress-1' };
 function logFirebaseEvent(evt, data = {}) {
@@ -333,15 +386,15 @@ function renderHomePage() {
 
           <!-- Sticky Bottom Nav -->
           <div class="bottom-nav">
-            <div class="nav-item" data-color="var(--accent)" data-index="0">
+            <div class="nav-item" data-color="var(--accent)" data-index="0" id="nav-home">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
               Entry
             </div>
-            <div class="nav-item" data-color="#00ffcc" data-index="1">
+            <div class="nav-item" data-color="#00ffcc" data-index="1" id="nav-break">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
               Break
             </div>
-            <div class="nav-item" data-color="#ff003c" data-index="2">
+            <div class="nav-item" data-color="#ff003c" data-index="2" id="nav-exit">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
               Exit
             </div>
@@ -351,9 +404,157 @@ function renderHomePage() {
 
       bindHomeEvents();
       renderSideNav(); 
-      initSmartHomeLogic(); // Handle card vanishing and copyright visibility
+      initSmartHomeLogic(); 
+      
+      // Start market background simulation if not running
+      if (!marketInterval) {
+        marketInterval = setInterval(updateMarketSimulation, 4000);
+      }
     }, 3000);
   };
+}
+
+  // Flash Market Bindings (Card and Nav)
+  const flashMarketCard = document.querySelector('.card-halftime button');
+  if (flashMarketCard) flashMarketCard.addEventListener('click', () => {
+    setNavActive(1);
+    renderFlashMarket();
+  });
+  
+  document.getElementById('nav-home')?.addEventListener('click', () => {
+    setNavActive(0);
+    renderEntryModule();
+  });
+  
+  document.getElementById('nav-break')?.addEventListener('click', () => {
+    setNavActive(1);
+    renderFlashMarket();
+  });
+
+  document.getElementById('nav-exit')?.addEventListener('click', () => {
+    setNavActive(2);
+    // Soft Exit module placeholder
+  });
+
+  document.getElementById('header-logo')?.addEventListener('click', () => {
+    renderHomePage();
+  });
+}
+
+function renderFlashMarket() {
+  const appEl = document.querySelector('#app');
+  appEl.innerHTML = `
+    <div id="market-container" class="animated">
+      <!-- Market Header -->
+      <div class="top-nav">
+        <div style="display: flex; align-items: center; gap: 1rem;">
+          <button id="market-back-btn">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          </button>
+          <div class="logo-small">MARKET</div>
+        </div>
+        <div class="avatar">
+           ${getAvatarHTML(parseInt(localStorage.getItem('flux_avatar_idx') || 0), 28)}
+        </div>
+      </div>
+
+      <!-- Live Ticker -->
+      <div class="market-ticker">
+        <div class="ticker-content" id="ticker-target"></div>
+      </div>
+
+      <!-- Market Stand List -->
+      <div class="market-feed" id="market-feed">
+        <!-- stands injected here -->
+      </div>
+    </div>
+  `;
+
+  document.getElementById('market-back-btn').addEventListener('click', renderHomePage);
+  updateMarketDisplay();
+}
+
+function updateMarketDisplay() {
+  const tickerEl = document.getElementById('ticker-target');
+  const feedEl = document.getElementById('market-feed');
+  if (!tickerEl || !feedEl) return;
+
+  // Refresh Ticker
+  tickerEl.innerHTML = mockMarketData.map(item => `
+    <span class="ticker-item ${item.trend}">
+      ${item.name.toUpperCase()} / WAIT: ${item.wait}m 
+      ${item.trend === 'up' ? '▲' : item.trend === 'down' ? '▼' : '•'}
+    </span>
+  `).join('');
+
+  // Refresh Feed
+  feedEl.innerHTML = mockMarketData.map(item => {
+    const density = (item.wait / 25) * 100;
+    const barColor = density > 70 ? '#ff003c' : density > 40 ? '#ffaa00' : 'var(--accent)';
+    const priceColor = item.priceCurrent < item.priceBase ? 'var(--accent)' : '#fff';
+
+    return `
+      <div class="stand-card">
+        <div class="stand-header">
+          <div class="stand-info">
+            <h3>${item.name}</h3>
+            <span class="type">${item.type} • SECTOR ${item.sector}</span>
+          </div>
+          <div class="stand-price">
+            <span class="price-val" style="color: ${priceColor}">$${item.priceCurrent}</span>
+            <span class="price-delta" style="color: ${priceColor}">
+              ${item.priceCurrent < item.priceBase ? 'ARBITRAGE DEAL' : 'STANDARD PRICE'}
+            </span>
+          </div>
+        </div>
+        
+        <div class="density-system">
+          <div class="density-label">
+            <span>CONGESTION: ${item.wait} MIN WAIT</span>
+            <span>${Math.round(density)}% LOAD</span>
+          </div>
+          <div class="density-bar-container">
+            <div class="density-bar" style="width: ${density}%; background: ${barColor}"></div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function showFlashDealAlert(congested, deal) {
+  if (document.getElementById('flash-deal-active')) return;
+  
+  const overlay = document.createElement('div');
+  overlay.id = 'flash-deal-active';
+  overlay.className = 'flash-deal-overlay animated';
+  overlay.innerHTML = `
+    <div class="flash-card">
+      <div class="flash-badge">FLASH DEAL FOUND</div>
+      <div class="flash-header">
+        <h2>Sector ${congested.sector} Spike!</h2>
+      </div>
+      <p class="flash-desc">
+        Wait time at ${congested.name} reached ${congested.wait}m. 
+        Switch to <strong>${deal.name}</strong> now and get 
+        <span style="color: var(--accent); font-weight: 800;">30% OFF</span> everything!
+      </p>
+      <button class="btn-primary" id="take-deal-btn">Redeem at Gate D</button>
+      <button id="close-deal-btn" style="margin-top: 1rem; background: none; border: none; color: #555; text-transform: uppercase; font-size: 0.7rem; cursor: pointer; letter-spacing: 0.1em;">Ignore Deal</button>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  document.getElementById('take-deal-btn').addEventListener('click', () => {
+    logFirebaseEvent('flash_deal_redeemed', { from: congested.id, to: deal.id });
+    overlay.remove();
+    renderFlashMarket();
+  });
+
+  document.getElementById('close-deal-btn').addEventListener('click', () => {
+    overlay.remove();
+  });
 }
 
 
@@ -432,66 +633,7 @@ function initSmartHomeLogic() {
   updateCardVis();
 }
 
-function bindHomeEvents() {
-  document.getElementById('nav-avatar').addEventListener('click', renderProfilePage);
-  document.getElementById('open-entry-btn').addEventListener('click', () => {
-    setNavActive(0); // sync entry icon as active
-    const greeting = document.getElementById('home-greeting');
-    if (greeting) greeting.classList.add('hidden');
-    renderEntryModule();
-  });
-
-
-  const navItems = document.querySelectorAll('.bottom-nav .nav-item');
-
-  navItems.forEach((item, index) => {
-    // set initial color for any pre-active item
-    if (item.classList.contains('active')) {
-      item.style.color = item.getAttribute('data-color');
-    }
-    item.addEventListener('click', () => {
-      setNavActive(index);
-      const greeting = document.getElementById('home-greeting');
-      if (index === 0) {
-        if (greeting) greeting.classList.add('hidden');
-        renderEntryModule();
-      } else {
-        // Reset home feed and greeting if going to other functional tabs (if added later)
-        if (greeting) greeting.classList.add('hidden');
-      }
-    });
-
-  });
-
-  document.getElementById('nav-menu-btn').addEventListener('click', () => toggleSideNav(true));
-  document.getElementById('nav-avatar').addEventListener('click', () => renderProfilePage());
-
-
-
-  document.getElementById('header-logo').addEventListener('click', () => {
-    const homeFeed = document.getElementById('home-feed');
-    const entryView = document.getElementById('entry-view');
-
-    if (mockEntryState.timerInterval) {
-      clearInterval(mockEntryState.timerInterval);
-      mockEntryState.timerInterval = null;
-    }
-
-    if (entryView) entryView.classList.add('hidden');
-    const greeting = document.getElementById('home-greeting');
-    if (greeting) greeting.classList.remove('hidden');
-
-    if (homeFeed) {
-      homeFeed.classList.remove('hidden');
-      homeFeed.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
-    // reset all nav items
-    const navItems = document.querySelectorAll('.bottom-nav .nav-item');
-    navItems.forEach(n => { n.classList.remove('active'); n.style.color = ''; });
-    if (navigator.vibrate) navigator.vibrate(50);
-  });
-}
+// (BindHomeEvents consolidated above)
 
 
 /** Side Nav Logic */
