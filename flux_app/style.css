@@ -57,7 +57,7 @@ h1.logo {
   font-weight: 900;
   letter-spacing: -3px;
   text-align: center;
-  margin-top: 5rem; /* Standardized for desktop visibility */
+  margin-top: 6rem; /* Standardized to clear top of viewport definitely */
   margin-bottom: 2rem;
   color: #fff;
   text-transform: uppercase;
@@ -348,11 +348,14 @@ input:focus {
 
 .main-feed {
   flex: 1;
-  overflow-y: auto;
-  padding: 5rem var(--screen-pad-x) 120px var(--screen-pad-x); /* Padded for top/bottom nav */
+  width: 100%;
+  max-height: 100vh;
+  overflow-y: auto !important;
+  padding: 80px var(--screen-pad-x) 120px var(--screen-pad-x) !important; /* Fixed padding for stick navs */
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  box-sizing: border-box;
   scrollbar-width: thin;
   scrollbar-color: rgba(255,255,255,0.1) transparent;
 }
