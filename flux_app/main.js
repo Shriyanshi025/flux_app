@@ -926,31 +926,43 @@ function renderProfilePage() {
 // ENTRY MODULE — GREEN CARPET
 // ============================================================
 function renderEntryModule() {
-  const homeFeed = document.getElementById('home-feed');
-  if (homeFeed) homeFeed.classList.add('hidden');
+  const appEl = document.querySelector('#app');
+  appEl.innerHTML = `
+    <div id="entry-container" class="animated">
+      <!-- Entry Header -->
+      <div class="top-nav">
+        <div style="display: flex; align-items: center; gap: 1rem;">
+          <button id="entry-back-btn" class="nav-back-btn">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          </button>
+          <div class="logo-small">ENTRY</div>
+        </div>
+        <div class="avatar">
+           ${getAvatarHTML(parseInt(localStorage.getItem('flux_avatar_idx') || 0), 28)}
+        </div>
+      </div>
 
-  let entryFeed = document.getElementById('entry-view');
-  if (!entryFeed) {
-    entryFeed = document.createElement('div');
-    entryFeed.id = 'entry-view';
-    entryFeed.className = 'main-feed animated';
-    const bottomNav = document.querySelector('.bottom-nav');
-    bottomNav.parentNode.insertBefore(entryFeed, bottomNav);
-  }
-  entryFeed.classList.remove('hidden');
+      <!-- Scrollable content -->
+      <div id="entry-view" class="main-feed animated">
+        <!-- slots injected here -->
+      </div>
+    </div>
+  `;
+
+  document.getElementById('entry-back-btn').addEventListener('click', renderHomePage);
+  const entryFeed = document.getElementById('entry-view');
 
   if (!mockEntryState.bookedSlot) {
     // Show nudge if Guest
     const isGuest = localStorage.getItem('flux_user') === 'GUEST';
     if (isGuest) {
        const nudge = document.createElement('div');
-       nudge.style = "background: rgba(0, 255, 204, 0.1); border: 1px solid rgba(0, 255, 204, 0.3); padding: 0.8rem; border-radius: 12px; margin-bottom: 1.5rem; text-align: center; color: #00ffcc; font-size: 0.8rem; font-weight: 500; font-family: var(--font-primary);";
+       nudge.style = "background: rgba(0, 255, 204, 0.1); border: 1px solid rgba(0, 255, 204, 0.3); padding: 0.8rem; border-radius: 12px; margin-bottom: 2.5rem; text-align: center; color: #00ffcc; font-size: 0.8rem; font-weight: 500; font-family: var(--font-primary);";
        nudge.innerHTML = `⚡ Register your <b style="color:#fff;">Fortress ID</b> to earn and save 500 Entry Points!`;
        entryFeed.prepend(nudge);
     }
     renderTimeSlots(entryFeed);
   } else {
-
     renderLockout(entryFeed);
   }
 }
