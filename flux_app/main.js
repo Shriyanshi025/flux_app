@@ -1440,18 +1440,24 @@ function bindUniversalNav() {
 }
 
 /**
- * P5.js FLOW-FIELD ENGINE (Instance Mode)
+ * P5.js FLOW-FIELD ENGINE - LITERAL REVERT
  */
 let p5Instance = null;
 
 function initP5Background() {
   if (p5Instance) return;
 
+  if (typeof p5 === 'undefined') {
+    setTimeout(initP5Background, 100);
+    return;
+  }
+
   const sketch = (p) => {
+    // --- Literal Port of Vars ---
     const deg = (a) => p.PI / 180 * a;
     const rand = (v1, v2) => Math.floor(v1 + Math.random() * (v2 - v1));
     const opt = {
-      particles: p.windowWidth / 500 ? 1000 : 500,
+      particles: (p.windowWidth / 500) > 1 ? 1000 : 500, // Normalized window.width logic
       noiseScale: 0.009,
       angle: p.PI / 180 * -90,
       h1: rand(0, 360), h2: rand(0, 360),
@@ -1462,32 +1468,84 @@ function initP5Background() {
     };
     const Particles = [];
     let time = 0;
-    let isPaused = true;
 
+    // --- Literal Particle Class ---
+    class Particle {
+      constructor(x, y) {
+        this.x = x; this.y = y;
+        this.lx = x; this.ly = y;
+        this.vx = 0; this.vy = 0;
+        this.ax = 0; this.ay = 0;
+        this.randomize();
+      }
+      
+      randomize() {
+        this.hueSemen = Math.random();
+        this.hue = this.hueSemen > .5 ? 20 + opt.h1 : 20 + opt.h2;
+        this.sat = this.hueSemen > .5 ? opt.s1 : opt.s2;
+        this.light = this.hueSemen > .5 ? opt.l1 : opt.l2;
+        this.maxSpeed = this.hueSemen > .5 ? 3 : 2;
+      }
+      
+      update() {
+        this.follow();
+        this.vx += this.ax; this.vy += this.ay;
+        var p_mag = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+        var a = p.atan2(this.vy, this.vx);
+        var m = Math.min(this.maxSpeed, p_mag);
+        this.vx = Math.cos(a) * m;
+        this.vy = Math.sin(a) * m;
+        this.x += this.vx; this.y += this.vy;
+        this.ax = 0; this.ay = 0;
+        this.edges();
+      }
+      
+      follow() {
+        let angle = (p.noise(this.x * opt.noiseScale, this.y * opt.noiseScale, time * opt.noiseScale)) * Math.PI * 0.5 + opt.angle;
+        this.ax += Math.cos(angle);
+        this.ay += Math.sin(angle);
+      }
+      
+      updatePrev() { this.lx = this.x; this.ly = this.y; }
+      
+      edges() {
+        if (this.x < 0) { this.x = p.width; this.updatePrev(); }
+        if (this.x > p.width) { this.x = 0; this.updatePrev(); }
+        if (this.y < 0) { this.y = p.height; this.updatePrev(); }
+        if (this.y > p.height) { this.y = 0; this.updatePrev(); }
+      }
+      
+      render() {
+        p.stroke(`hsla(${this.hue}, ${this.sat}%, ${this.light}%, .5)`);
+        p.line(this.x, this.y, this.lx, this.ly);
+        this.updatePrev();
+      }
+    }
+
+    // --- Literal Lifecycle ---
     p.setup = () => {
       const cnv = p.createCanvas(p.windowWidth, p.windowHeight);
       cnv.id('flux-bg-canvas');
       cnv.style('position', 'fixed');
-      cnv.style('top', '0');
-      cnv.style('left', '0');
+      cnv.style('top', '0'); cnv.style('left', '0');
       cnv.style('z-index', '-1');
       cnv.style('opacity', '0');
-      cnv.style('transition', 'opacity 2s ease');
+      cnv.style('transition', 'opacity 1s ease');
       cnv.style('pointer-events', 'none');
 
       for (let i = 0; i < opt.particles; i++) {
-        Particles.push(new Particle(p.random(p.width), p.random(p.height), p, opt));
+        Particles.push(new Particle(Math.random() * p.width, Math.random() * p.height));
       }
       p.strokeWeight(opt.strokeWeight);
-      p.noLoop(); // Start paused
+      p.noLoop();
     };
 
     p.draw = () => {
       time++;
       p.background(0, 100 - opt.tail);
-      for (let particle of Particles) {
-        particle.update(time);
-        particle.render();
+      for (let part of Particles) {
+        part.update();
+        part.render();
       }
     };
 
@@ -1495,88 +1553,31 @@ function initP5Background() {
       p.resizeCanvas(p.windowWidth, p.windowHeight);
     };
 
-    // Public controller methods
+    // Controller methods for main.js sync
     p.wake = () => {
       const el = document.getElementById('flux-bg-canvas');
       if (el) el.style.opacity = '1';
       p.loop();
     };
-
     p.hibernate = () => {
       const el = document.getElementById('flux-bg-canvas');
       if (el) el.style.opacity = '0';
       p.noLoop();
     };
-
-    p.randomizeField = () => {
+    p.triggerRandomize = () => {
       opt.h1 = rand(0, 360); opt.h2 = rand(0, 360);
       opt.s1 = rand(20, 90); opt.s2 = rand(20, 90);
       opt.l1 = rand(30, 80); opt.l2 = rand(30, 80);
-      opt.angle += deg(p.random(60, 60)) * (p.random() > .5 ? 1 : -1);
+      opt.angle += p.PI / 180 * 60 * (Math.random() > .5 ? 1 : -1);
       for (let part of Particles) part.randomize();
     };
   };
 
   p5Instance = new p5(sketch);
-  
-  // Bind global click to randomize (as per user request)
-  document.body.addEventListener('click', (e) => {
-    // Prevent randomizing if clicking interactive dashboard elements
-    if (e.target.closest('.promo-card') || e.target.closest('button') || e.target.closest('.bottom-nav')) return;
-    p5Instance?.randomizeField();
-  });
-}
 
-class Particle {
-  constructor(x, y, p, opt) {
-    this.p = p;
-    this.opt = opt;
-    this.x = x; this.y = y;
-    this.lx = x; this.ly = y;
-    this.vx = 0; this.vy = 0;
-    this.ax = 0; this.ay = 0;
-    this.randomize();
-  }
-  
-  randomize() {
-    this.hueSemen = Math.random();
-    this.hue = this.hueSemen > .5 ? 20 + this.opt.h1 : 20 + this.opt.h2;
-    this.sat = this.hueSemen > .5 ? this.opt.s1 : this.opt.s2;
-    this.light = this.hueSemen > .5 ? this.opt.l1 : this.opt.l2;
-    this.maxSpeed = this.hueSemen > .5 ? 3 : 2;
-  }
-  
-  update(time) {
-    this.follow(time);
-    this.vx += this.ax; this.vy += this.ay;
-    const p = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
-    const a = Math.atan2(this.vy, this.vx);
-    const m = Math.min(this.maxSpeed, p);
-    this.vx = Math.cos(a) * m;
-    this.vy = Math.sin(a) * m;
-    this.x += this.vx; this.y += this.vy;
-    this.ax = 0; this.ay = 0;
-    this.edges();
-  }
-  
-  follow(time) {
-    let angle = (this.p.noise(this.x * this.opt.noiseScale, this.y * this.opt.noiseScale, time * this.opt.noiseScale)) * Math.PI * 0.5 + this.opt.angle;
-    this.ax += Math.cos(angle);
-    this.ay += Math.sin(angle);
-  }
-  
-  updatePrev() { this.lx = this.x; this.ly = this.y; }
-  
-  edges() {
-    if (this.x < 0) { this.x = this.p.width; this.updatePrev(); }
-    if (this.x > this.p.width) { this.x = 0; this.updatePrev(); }
-    if (this.y < 0) { this.y = this.p.height; this.updatePrev(); }
-    if (this.y > this.p.height) { this.y = 0; this.updatePrev(); }
-  }
-  
-  render() {
-    this.p.stroke(`hsla(${this.hue}, ${this.sat}%, ${this.light}%, .5)`);
-    this.p.line(this.x, this.y, this.lx, this.ly);
-    this.updatePrev();
-  }
+  // Global Click Integration (as per user click handler)
+  document.body.addEventListener('click', (e) => {
+    if (e.target.closest('.promo-card') || e.target.closest('button')) return;
+    p5Instance?.triggerRandomize();
+  });
 }

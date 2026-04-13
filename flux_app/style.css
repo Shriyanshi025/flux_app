@@ -26,17 +26,14 @@ body {
   justify-content: center;
   min-height: 100vh;
   font-family: var(--font-primary);
-  background: radial-gradient(circle at center, var(--bg-core) 50%, var(--bg-vignette) 150%);
+  background: black; /* Literal Revert */
   color: var(--text-main);
-  overflow-x: hidden;
+  overflow: hidden; /* Literal Revert */
   height: 100vh;
   transition: all 1s ease;
 }
 
-/* Home Page Background Override */
-body.theme-blue {
-  background: radial-gradient(circle at top center, #002244 0%, var(--bg-core) 70%, #001122 150%);
-}
+/* Home Page Background Override - DELETED for Literal Revert */
 
 #app {
   width: 100%;
