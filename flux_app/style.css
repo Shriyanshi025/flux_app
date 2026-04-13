@@ -14,6 +14,7 @@
   --font-logo: 'Outfit', sans-serif;
   --screen-pad-x: clamp(1rem, 4.5vw, 1.5rem);
   --max-app-width: 1200px;
+  --auth-width: 450px;
 }
 
 
@@ -73,12 +74,15 @@ h1.logo {
   background: rgba(10, 10, 10, 0.6);
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 20px;
-  padding: 2rem;
+  padding: 2.5rem 2rem;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
   position: relative;
   overflow: hidden;
+  width: 100%;
+  max-width: var(--auth-width);
+  margin: 0 auto;
 }
 
 .auth-box::before {
