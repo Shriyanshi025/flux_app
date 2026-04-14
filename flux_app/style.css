@@ -351,7 +351,7 @@ input:focus {
   width: 100%;
   max-height: 100vh;
   overflow-y: auto !important;
-  padding: 55px var(--screen-pad-x) 120px var(--screen-pad-x) !important; /* Calibrated 1.5cm spacing */
+  padding: 45px var(--screen-pad-x) 120px var(--screen-pad-x) !important; /* Calibrated 1.3-1.5cm spacing */
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -1093,19 +1093,22 @@ input:focus {
 
 /* === THE CURVED DECK (Profile & Menu Overlays) === */
 .curved-deck {
-  background: #0d0d12 !important; /* Solid Obsidian Theme - No transparency */
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: #0a0a0c !important; /* Total Obsidian Opacity - Zero Bleed */
+  border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 40px;
-  padding: 3.5rem 4rem; /* Substantial padding */
+  padding: 3rem 4rem; 
   width: 100%;
-  max-width: 650px; /* Dominant Presence */
-  box-shadow: 0 50px 100px rgba(0, 0, 0, 0.9);
+  max-width: 650px; 
+  box-shadow: 0 50px 100px rgba(0, 0, 0, 0.95);
   display: flex;
   flex-direction: column;
   align-items: center;
-  position: relative;
-  overflow: hidden;
-  z-index: 9999;
+  position: absolute; /* Re-anchored for precision */
+  bottom: 110px; /* Clears bottom nav perfectly */
+  left: 50%;
+  transform: translateX(-50%);
+  overflow: visible; /* Allow drop shadows to breathe */
+  z-index: 10000;
   animation: deckSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 

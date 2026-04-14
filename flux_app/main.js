@@ -404,12 +404,12 @@ function renderHomeHTML(appEl) {
       </div>
 
       <!-- User Greeting -->
-      <div class="home-greeting" id="home-greeting">
+      <div class="home-greeting" id="home-greeting" style="margin-bottom: 25px;">
         HELLO, ${localStorage.getItem('flux_user')?.split(' ')[0].toUpperCase() || 'GUEST'}
       </div>
 
       <!-- Scrollable content -->
-      <div class="main-feed" id="home-feed">
+      <div class="main-feed" id="home-feed" style="padding-top: 20px !important;">
         <div class="promo-card card-arrival">
           <h3>Arrival: Green Carpet</h3>
           <p>Book a 10-minute arrival slot up to 7 days in advance. Arrive on time, unlock the Fast Lane.</p>
@@ -1422,6 +1422,7 @@ function getBottomNavHTML() {
 }
 
 function bindUniversalNav() {
+  // Navigation Icons
   document.getElementById('nav-home')?.addEventListener('click', () => {
     setNavActive(0);
     renderEntryModule();
@@ -1434,11 +1435,52 @@ function bindUniversalNav() {
 
   document.getElementById('nav-exit')?.addEventListener('click', () => {
     setNavActive(2);
-    // Soft Exit Placeholder
+    renderExitModule();
   });
+
+  // Profile Avatar (Universal)
+  document.getElementById('nav-avatar')?.addEventListener('click', () => {
+    renderProfileDeck(document.querySelector('#app-container') || document.querySelector('#app'));
+  });
+
+  // Entry Back Button
+  document.getElementById('entry-back-btn')?.addEventListener('click', renderHomePage);
+  document.getElementById('market-back-btn')?.addEventListener('click', renderHomePage);
 
   // Logo back-to-dashboard shortcut
   document.getElementById('header-logo')?.addEventListener('click', renderHomePage);
+}
+
+function renderExitModule() {
+  const appEl = document.querySelector('#app');
+  appEl.innerHTML = `
+    <div id="app-container" class="animated">
+      <div class="top-nav">
+        <div style="display: flex; align-items: center; gap: 1rem;">
+           <div class="nav-back-btn" id="exit-back-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg></div>
+           <div class="nav-logo">EXIT</div>
+        </div>
+        <div class="avatar" id="nav-avatar">
+           ${getAvatarHTML(parseInt(localStorage.getItem('flux_avatar_idx') || 0), 28)}
+        </div>
+      </div>
+
+      <div class="main-feed" style="justify-content: center; align-items: center; text-align: center; height: 80vh;">
+         <h2 style="color: #ff2a55; font-size: 1.8rem; margin-bottom: 1rem;">Soft Exit Protocol</h2>
+         <p style="color: var(--text-muted); max-width: 300px; margin-bottom: 2rem;">Congestion detected. Stay in your seat to unlock exclusive post-game rewards.</p>
+         <div class="promo-card" style="border-color: #ff2a55;">
+            <p style="color: #ff2a55; font-weight: 700;">PROXIMITY BONUS</p>
+            <h3 style="margin: 5px 0 15px 0;">20% Uber Discount</h3>
+            <button class="btn-primary" style="background:#ff2a55; border-color:#ff2a55; color:white;">Redeem Voucher</button>
+         </div>
+      </div>
+
+      ${getBottomNavHTML()}
+    </div>
+  `;
+  document.getElementById('exit-back-btn')?.addEventListener('click', renderHomePage);
+  bindUniversalNav();
+  setNavActive(2);
 }
 
 /**
