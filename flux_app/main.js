@@ -248,7 +248,8 @@ function renderAuthPage() {
             Initialize Fortress
           </button>
         </div>
-      </div>
+    </div>
+  `;
   bindEvents();
   loadEntryState();
   checkExistingUser();
