@@ -361,13 +361,13 @@ input:focus {
 }
 
 .home-greeting {
-  padding: 30px var(--screen-pad-x) 0; /* Tightened top-nav gap */
+  padding: 10px var(--screen-pad-x) 0; /* Tightened top-nav gap */
   font-family: var(--font-logo);
   font-size: 1.1rem;
   font-weight: 300;
   letter-spacing: 0.15em;
   color: var(--text-muted);
-  margin-bottom: 5px !important; /* Minimal gap to feed */
+  margin-bottom: 0px !important; /* Managed by feed padding */
 }
 
 #home-feed.main-feed {
@@ -1094,20 +1094,20 @@ input:focus {
 /* === THE CURVED DECK (Profile & Menu Overlays) === */
 .curved-deck {
   background: #0a0a0c !important; /* Total Obsidian Opacity - Zero Bleed */
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 40px;
-  padding: 3rem 4rem; 
-  width: 90%;
+  padding: 3.5rem 4rem; 
+  width: 95%;
   max-width: 650px; 
-  box-shadow: 0 50px 100px rgba(0, 0, 0, 0.95);
+  box-shadow: 0 50px 150px rgba(0, 0, 0, 1);
   display: flex;
   flex-direction: column;
   align-items: center;
-  position: fixed; /* Fixed centering */
-  bottom: 110px; 
+  position: fixed; /* Enforces absolute centering */
+  bottom: 120px; 
   left: 50%;
   transform: translateX(-50%);
-  overflow: hidden; 
+  overflow: visible; 
   z-index: 10000;
   animation: deckSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }

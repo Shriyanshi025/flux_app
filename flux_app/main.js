@@ -404,12 +404,12 @@ function renderHomeHTML(appEl) {
       </div>
 
       <!-- User Greeting -->
-      <div class="home-greeting" id="home-greeting" style="padding: 30px var(--screen-pad-x) 0; margin-bottom: 0px !important;">
+      <div class="home-greeting" id="home-greeting" style="padding: 10px var(--screen-pad-x) 0; margin-bottom: 0px !important;">
         HELLO, ${localStorage.getItem('flux_user')?.split(' ')[0].toUpperCase() || 'GUEST'}
       </div>
 
       <!-- Scrollable content -->
-      <div class="main-feed" id="home-feed" style="padding-top: 15px !important;">
+      <div class="main-feed" id="home-feed" style="padding-top: 5px !important;">
         <div class="promo-card card-arrival">
           <h3>Arrival: Green Carpet</h3>
           <p>Book a 10-minute arrival slot up to 7 days in advance. Arrive on time, unlock the Fast Lane.</p>
@@ -1103,6 +1103,8 @@ function renderTimeSlots(container) {
 
     });
   });
+
+  bindUniversalNav();
 }
 
 function renderLockout(container) {
@@ -1627,7 +1629,10 @@ function initP5Background() {
 
   p5Instance = new p5(sketch);
 
-  // Global Click Integration (as per user click handler)
+  // Global Event Re-binding
+  bindUniversalNav();
+
+  // Global Click Integration
   document.body.addEventListener('click', (e) => {
     if (e.target.closest('.promo-card') || e.target.closest('button')) return;
     p5Instance?.triggerRandomize();
