@@ -179,6 +179,21 @@ function generateQRSVG(seed) {
 }
 
 // ============================================================
+// SECURITY & SESSION WRAPPERS
+// ============================================================
+function isAuth() {
+  return !!localStorage.getItem('flux_user');
+}
+
+function authGuard() {
+  if (!isAuth()) {
+     renderAuthPage();
+     return false;
+  }
+  return true;
+}
+
+// ============================================================
 // LOGIN / REGISTER SCREEN
 // ============================================================
 function renderAuthPage() {
@@ -234,13 +249,6 @@ function renderAuthPage() {
           </button>
         </div>
       </div>
-      ${getBottomNavHTML()}
-    </div>
-  `;
-
-  bindUniversalNav();
-  setNavActive(0);
-
   bindEvents();
   loadEntryState();
   checkExistingUser();
@@ -350,6 +358,8 @@ function hibernateEverything() {
 }
 
 function renderHomePage() {
+  if (!authGuard()) return;
+
   const hasPlayedDrone = sessionStorage.getItem('flux_drone_played');
   const appEl = document.querySelector('#app');
 
@@ -485,6 +495,7 @@ function bindHomeEvents() {
 }
 
 function renderFlashMarket() {
+  if (!authGuard()) return;
   const container = document.querySelector('#app');
   container.innerHTML = `
     <div id="app-container" class="animated">
@@ -976,6 +987,7 @@ function renderProfilePage() {
 // ENTRY MODULE — GREEN CARPET
 // ============================================================
 function renderEntryModule() {
+  if (!authGuard()) return;
   const appEl = document.querySelector('#app');
   appEl.innerHTML = `
     <div id="entry-container" class="animated">
@@ -1479,6 +1491,7 @@ function bindUniversalNav() {
 }
 
 function renderExitModule() {
+  if (!authGuard()) return;
   const container = document.querySelector('#app');
   container.innerHTML = `
     <div id="app-container" class="animated">
@@ -1640,9 +1653,6 @@ function initP5Background() {
   };
 
   p5Instance = new p5(sketch);
-
-  // Global Event Re-binding
-  bindUniversalNav();
 
   // Global Click Integration
   document.body.addEventListener('click', (e) => {
