@@ -404,7 +404,7 @@ function renderHomeHTML(appEl) {
       </div>
 
       <!-- User Greeting -->
-      <div class="home-greeting" id="home-greeting" style="padding: 120px var(--screen-pad-x) 0; margin-bottom: 0px !important;">
+      <div class="home-greeting" id="home-greeting" style="padding: 0 var(--screen-pad-x); margin: 0 !important;">
         HELLO, ${localStorage.getItem('flux_user')?.split(' ')[0].toUpperCase() || 'GUEST'}
       </div>
 
@@ -503,7 +503,7 @@ function renderFlashMarket() {
         <div class="ticker-content" id="ticker-target"></div>
       </div>
 
-      <div class="main-feed" id="market-feed" style="padding-top: 120px !important;">
+      <div class="main-feed" id="market-feed" style="padding-top: 10px !important;">
         <h2 style="color: #ffaa00;">Flash Market</h2>
         <!-- stands injected here -->
       </div>
@@ -1482,7 +1482,7 @@ function renderExitModule() {
         </div>
       </div>
 
-      <div class="main-feed" style="padding-top: 120px; display: flex; align-items: center; justify-content: center; height: 50vh;">
+      <div class="main-feed" style="padding-top: 10px; display: flex; align-items: center; justify-content: center; height: 50vh;">
          <!-- Placeholder for Future Exit Flow -->
       </div>
       
