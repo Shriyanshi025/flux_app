@@ -351,23 +351,23 @@ input:focus {
   width: 100%;
   max-height: 100vh;
   overflow-y: auto !important;
-  padding: 45px var(--screen-pad-x) 120px var(--screen-pad-x) !important; /* Calibrated 1.3-1.5cm spacing */
+  padding: 30px var(--screen-pad-x) 120px var(--screen-pad-x) !important; /* Calibrated 1.3-1.5cm spacing */
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.2rem;
   box-sizing: border-box;
   scrollbar-width: thin;
   scrollbar-color: rgba(255,255,255,0.1) transparent;
 }
 
 .home-greeting {
-  padding: 85px var(--screen-pad-x) 0; /* Clear top-nav */
+  padding: 30px var(--screen-pad-x) 0; /* Tightened top-nav gap */
   font-family: var(--font-logo);
   font-size: 1.1rem;
   font-weight: 300;
   letter-spacing: 0.15em;
   color: var(--text-muted);
-  margin-bottom: 0px; /* Let the feed padding control the gap */
+  margin-bottom: 5px !important; /* Minimal gap to feed */
 }
 
 #home-feed.main-feed {
@@ -1097,17 +1097,17 @@ input:focus {
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 40px;
   padding: 3rem 4rem; 
-  width: 100%;
+  width: 90%;
   max-width: 650px; 
   box-shadow: 0 50px 100px rgba(0, 0, 0, 0.95);
   display: flex;
   flex-direction: column;
   align-items: center;
-  position: absolute; /* Re-anchored for precision */
-  bottom: 110px; /* Clears bottom nav perfectly */
+  position: fixed; /* Fixed centering */
+  bottom: 110px; 
   left: 50%;
   transform: translateX(-50%);
-  overflow: visible; /* Allow drop shadows to breathe */
+  overflow: hidden; 
   z-index: 10000;
   animation: deckSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
