@@ -1120,10 +1120,7 @@ input:focus {
   width: 100%;
 }
 
-/* Auth isolation */
-#app-container .bottom-nav {
-  display: none !important;
-}
+
 
 #flux-bg-canvas {
   display: block;

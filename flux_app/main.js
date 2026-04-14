@@ -512,6 +512,7 @@ function renderFlashMarket() {
     </div>
   `;
 
+
   bindUniversalNav(); 
   setNavActive(1);    
   
@@ -1439,7 +1440,7 @@ function bindUniversalNav() {
   // Navigation Icons
   document.getElementById('nav-home')?.addEventListener('click', () => {
     setNavActive(0);
-    renderEntryModule();
+    renderHomePage(); 
   });
   
   document.getElementById('nav-break')?.addEventListener('click', () => {
@@ -1448,7 +1449,7 @@ function bindUniversalNav() {
   });
 
   document.getElementById('nav-exit')?.addEventListener('click', () => {
-    setNavActive(2);
+    setNavActive(3); 
     renderExitModule();
   });
 
