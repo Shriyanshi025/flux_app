@@ -409,7 +409,7 @@ function renderHomeHTML(appEl) {
       </div>
 
       <!-- Scrollable content -->
-      <div class="main-feed" id="home-feed" style="padding-top: 5px !important;">
+      <div class="main-feed" id="home-feed" style="padding-top: 20px !important;">
         <div class="promo-card card-arrival">
           <h3>Arrival: Green Carpet</h3>
           <p>Book a 10-minute arrival slot up to 7 days in advance. Arrive on time, unlock the Fast Lane.</p>
@@ -501,21 +501,39 @@ function renderFlashMarket() {
         </div>
       </div>
 
-      <!-- Live Ticker -->
-      <div class="market-ticker">
-        <div class="ticker-content" id="ticker-target"></div>
-      </div>
+  const container = document.querySelector('#app');
+  const triggerMarket = () => {
+    container.innerHTML = `
+      <div id="app-container" class="animated">
+        <div class="top-nav">
+          <div style="display: flex; align-items: center; gap: 1rem;">
+             <div class="nav-back-btn" id="market-back-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg></div>
+             <div class="nav-logo">MARKET</div>
+          </div>
+          <div class="avatar" id="nav-avatar">
+             ${getAvatarHTML(parseInt(localStorage.getItem('flux_avatar_idx') || 0), 28)}
+          </div>
+        </div>
 
-      <!-- Market Stand List -->
-      <div class="market-feed" id="market-feed">
-        <!-- stands injected here -->
+        <!-- Live Ticker -->
+        <div class="market-ticker">
+          <div class="ticker-content" id="ticker-target"></div>
+        </div>
+
+        <div class="main-feed" id="market-feed" style="padding-top: 40px !important;">
+          <h2 style="color: #ffaa00;">Flash Market</h2>
+          <!-- Market Items... -->
+        </div>
+
+        ${getBottomNavHTML()}
       </div>
-      ${getBottomNavHTML()}
-    </div>
-  `;
+    `;
+    bindUniversalNav();
+  };
+
+  triggerMarket();
 
   document.getElementById('market-back-btn').addEventListener('click', renderHomePage);
-  document.getElementById('market-avatar')?.addEventListener('click', renderProfilePage);
   bindUniversalNav(); // Link universal navigation
   setNavActive(1);    // Mark break as active
   
@@ -1062,27 +1080,41 @@ function renderTimeSlots(container) {
   }).join('');
 
   container.innerHTML = `
-    <div class="main-feed" id="entry-feed">
-      <h2 style="color: #00ff66;">Choose Your Window</h2>
-      
-      <div class="promo-card" id="maps-engine-card" style="border-color: #00ff66; background: rgba(0, 255, 102, 0.05); padding: 2rem; margin-bottom: 2.5rem;">
-          <h3 style="color: #00ff66; margin: 0 0 0.8rem 0; font-size: 1.2rem; text-transform: uppercase;">Live Proximity Protocol</h3>
-          <p style="font-size: 0.9rem; line-height: 1.6; margin-bottom: 1.5rem;">Syncing with <strong style="color:#fff;">Google Maps Platform</strong> for real-time stadium geo-fencing and crowd-flow optimization.</p>
-          
-          <div id="google-maps-engine" style="width: 100%; height: 160px; background: #080808; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center;">
-               <!-- Simulated Google Maps Engine (Dark Mode) -->
-               <div style="position: absolute; inset: 0; opacity: 0.3; background-image: radial-gradient(circle at 20% 30%, #333 1px, transparent 1px), radial-gradient(circle at 60% 70%, #333 1.5px, transparent 1px); background-size: 40px 40px;"></div>
-               <div style="position: relative; z-index: 5; text-align: center;">
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#00ff66" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                  <p style="margin: 5px 0 0 0; font-size: 0.7rem; color: #00ff66; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700;">Maps Engine Active</p>
-               </div>
-               <div style="position: absolute; bottom: 8px; right: 8px; opacity: 0.6;">
-                  <img src="https://www.gstatic.com/images/branding/googlelogo/2x/googlelogo_light_color_92x30dp.png" alt="Google" style="height: 12px;">
-               </div>
-          </div>
+    <div id="app-container" class="animated">
+      <div class="top-nav">
+        <div style="display: flex; align-items: center; gap: 1rem;">
+           <div class="nav-back-btn" id="entry-back-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg></div>
+           <div class="nav-logo">ENTRY</div>
+        </div>
+        <div class="avatar" id="nav-avatar">
+           ${getAvatarHTML(parseInt(localStorage.getItem('flux_avatar_idx') || 0), 28)}
+        </div>
       </div>
 
-      <div class="entry-grid">${slotCards}</div>
+      <div class="main-feed" id="entry-feed" style="padding-top: 40px !important;">
+        <h2 style="color: #00ff66;">Choose Your Window</h2>
+        
+        <div class="promo-card" id="maps-engine-card" style="border-color: #00ff66; background: rgba(0, 255, 102, 0.05); padding: 2rem; margin-bottom: 2.5rem;">
+            <h3 style="color: #00ff66; margin: 0 0 0.8rem 0; font-size: 1.2rem; text-transform: uppercase;">Live Proximity Protocol</h3>
+            <p style="font-size: 0.9rem; line-height: 1.6; margin-bottom: 1.5rem;">Syncing with <strong style="color:#fff;">Google Maps Platform</strong> for real-time stadium geo-fencing and crowd-flow optimization.</p>
+            
+            <div id="google-maps-engine" style="width: 100%; height: 160px; background: #080808; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                 <!-- Simulated Google Maps Engine (Dark Mode) -->
+                 <div style="position: absolute; inset: 0; opacity: 0.3; background-image: radial-gradient(circle at 20% 30%, #333 1px, transparent 1px), radial-gradient(circle at 60% 70%, #333 1.5px, transparent 1px); background-size: 40px 40px;"></div>
+                 <div style="position: relative; z-index: 5; text-align: center;">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#00ff66" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    <p style="margin: 5px 0 0 0; font-size: 0.7rem; color: #00ff66; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700;">Maps Engine Active</p>
+                 </div>
+                 <div style="position: absolute; bottom: 8px; right: 8px; opacity: 0.6;">
+                    <img src="https://www.gstatic.com/images/branding/googlelogo/2x/googlelogo_light_color_92x30dp.png" alt="Google" style="height: 12px;">
+                 </div>
+            </div>
+        </div>
+
+        <div class="entry-grid">${slotCards}</div>
+      </div>
+
+      ${getBottomNavHTML()}
     </div>
   `;
 
