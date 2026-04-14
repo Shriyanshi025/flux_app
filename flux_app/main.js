@@ -404,7 +404,7 @@ function renderHomeHTML(appEl) {
       </div>
 
       <!-- User Greeting -->
-      <div class="home-greeting" id="home-greeting" style="padding: 0 var(--screen-pad-x); margin: 0 !important;">
+      <div class="home-greeting" id="home-greeting" style="padding: 120px var(--screen-pad-x) 0; margin-bottom: 0px !important;">
         HELLO, ${localStorage.getItem('flux_user')?.split(' ')[0].toUpperCase() || 'GUEST'}
       </div>
 
@@ -503,7 +503,7 @@ function renderFlashMarket() {
         <div class="ticker-content" id="ticker-target"></div>
       </div>
 
-      <div class="main-feed" id="market-feed" style="padding-top: 40px !important;">
+      <div class="main-feed" id="market-feed" style="padding-top: 120px !important;">
         <h2 style="color: #ffaa00;">Flash Market</h2>
         <!-- stands injected here -->
       </div>
@@ -1068,7 +1068,7 @@ function renderTimeSlots(container) {
         </div>
       </div>
 
-      <div class="main-feed" id="entry-feed" style="padding-top: 40px !important;">
+      <div class="main-feed" id="entry-feed" style="padding-top: 120px !important;">
         <h2 style="color: #00ff66;">Choose Your Window</h2>
         
         <div class="promo-card" id="maps-engine-card" style="border-color: #00ff66; background: rgba(0, 255, 102, 0.05); padding: 2rem; margin-bottom: 2.5rem;">
@@ -1386,15 +1386,17 @@ function showAvatarPicker(currentIdx, onSelect) {
   overlay.style = "position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:3000; display:flex; flex-direction:column; align-items:center; justify-content:center; padding: 2rem;";
 
   overlay.innerHTML = `
-    <h2 style="color: var(--accent); margin-bottom: 2rem; text-transform: uppercase; letter-spacing: 0.1em;">Choose Your Preset</h2>
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
-      ${[0, 1, 2, 3].map(i => `
-        <div class="avatar-option" data-idx="${i}" style="width: 80px; height: 80px; border-radius: 50%; background: ${getAvatarTheme(i).bg}; cursor: pointer; border: ${i === currentIdx ? '4px solid #fff' : '2px solid rgba(255,255,255,0.1)'}; transition: 0.3s; display:flex; align-items:center; justify-content:center;">
-           ${getAvatarHTML(i, 40)}
-        </div>
-      `).join('')}
+    <div style="width: 100%; max-width: 500px; background: #0a0a0c; border: 1px solid rgba(255,255,255,0.15); border-radius: 40px; padding: 3rem; display: flex; flex-direction: column; align-items: center; box-shadow: 0 50px 100px rgba(0,0,0,0.9); margin-top: 50px;">
+      <h2 style="color: var(--accent); margin-bottom: 2rem; text-transform: uppercase; letter-spacing: 0.1em; font-size: 1.2rem;">Choose Your Preset</h2>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+        ${[0, 1, 2, 3].map(i => `
+          <div class="avatar-option" data-idx="${i}" style="width: 80px; height: 80px; border-radius: 50%; background: ${getAvatarTheme(i).bg}; cursor: pointer; border: ${i === currentIdx ? '4px solid #fff' : '2px solid rgba(255,255,255,0.1)'}; transition: 0.3s; display:flex; align-items:center; justify-content:center;">
+             ${getAvatarHTML(i, 40)}
+          </div>
+        `).join('')}
+      </div>
+      <button id="close-picker" style="margin-top: 3rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #888; padding: 0.8rem 2rem; border-radius: 30px; cursor: pointer;">Cancel</button>
     </div>
-    <button id="close-picker" style="margin-top: 3rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #888; padding: 0.8rem 2rem; border-radius: 30px; cursor: pointer;">Cancel</button>
   `;
 
   document.body.appendChild(overlay);
@@ -1467,8 +1469,8 @@ function bindUniversalNav() {
 }
 
 function renderExitModule() {
-  const appEl = document.querySelector('#app');
-  appEl.innerHTML = `
+  const container = document.querySelector('#app');
+  container.innerHTML = `
     <div id="app-container" class="animated">
       <div class="top-nav">
         <div style="display: flex; align-items: center; gap: 1rem;">
@@ -1480,19 +1482,15 @@ function renderExitModule() {
         </div>
       </div>
 
-      <div class="main-feed" style="justify-content: center; align-items: center; text-align: center; height: calc(100vh - 180px); padding-top: 40px !important;">
-         <h2 style="color: #ff2a55; font-size: 1.8rem; margin-bottom: 1rem;">Soft Exit Protocol</h2>
-         <p style="color: var(--text-muted); max-width: 300px; margin-bottom: 2rem;">Congestion detected. Stay in your seat to unlock exclusive post-game rewards.</p>
-         <div class="promo-card" style="border-color: #ff2a55; margin: 0 auto; width: calc(100% - 40px); max-width: 400px;">
-            <p style="color: #ff2a55; font-weight: 700;">PROXIMITY BONUS</p>
-            <h3 style="margin: 5px 0 15px 0;">20% Uber Discount</h3>
-            <button class="btn-primary" style="background:#ff2a55; border-color:#ff2a55; color:white;">Redeem Voucher</button>
-         </div>
+      <div class="main-feed" style="padding-top: 120px; display: flex; align-items: center; justify-content: center; height: 50vh;">
+         <!-- Placeholder for Future Exit Flow -->
       </div>
-
+      
       ${getBottomNavHTML()}
     </div>
   `;
+
+  document.getElementById('exit-back-btn').addEventListener('click', renderHomePage);
   bindUniversalNav();
   setNavActive(2);
 }
