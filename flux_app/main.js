@@ -404,12 +404,12 @@ function renderHomeHTML(appEl) {
       </div>
 
       <!-- User Greeting -->
-      <div class="home-greeting" id="home-greeting" style="padding: 10px var(--screen-pad-x) 0; margin-bottom: 0px !important;">
+      <div class="home-greeting" id="home-greeting" style="padding: 0 var(--screen-pad-x); margin: 0 !important;">
         HELLO, ${localStorage.getItem('flux_user')?.split(' ')[0].toUpperCase() || 'GUEST'}
       </div>
 
       <!-- Scrollable content -->
-      <div class="main-feed" id="home-feed" style="padding-top: 20px !important;">
+      <div class="main-feed" id="home-feed" style="padding-top: 10px !important;">
         <div class="promo-card card-arrival">
           <h3>Arrival: Green Carpet</h3>
           <p>Book a 10-minute arrival slot up to 7 days in advance. Arrive on time, unlock the Fast Lane.</p>
@@ -485,61 +485,38 @@ function bindHomeEvents() {
 }
 
 function renderFlashMarket() {
-  const appEl = document.querySelector('#app');
-  appEl.innerHTML = `
-    <div id="market-container" class="animated">
-      <!-- Market Header -->
+  const container = document.querySelector('#app');
+  container.innerHTML = `
+    <div id="app-container" class="animated">
       <div class="top-nav">
         <div style="display: flex; align-items: center; gap: 1rem;">
-          <button id="market-back-btn" class="nav-back-btn" title="Back to Dashboard">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-          </button>
-          <div class="logo-small">MARKET</div>
+           <div class="nav-back-btn" id="market-back-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg></div>
+           <div class="nav-logo">MARKET</div>
         </div>
-        <div class="avatar" style="cursor: pointer;" onclick="renderProfilePage()">
+        <div class="avatar" id="nav-avatar">
            ${getAvatarHTML(parseInt(localStorage.getItem('flux_avatar_idx') || 0), 28)}
         </div>
       </div>
 
-  const container = document.querySelector('#app');
-  const triggerMarket = () => {
-    container.innerHTML = `
-      <div id="app-container" class="animated">
-        <div class="top-nav">
-          <div style="display: flex; align-items: center; gap: 1rem;">
-             <div class="nav-back-btn" id="market-back-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg></div>
-             <div class="nav-logo">MARKET</div>
-          </div>
-          <div class="avatar" id="nav-avatar">
-             ${getAvatarHTML(parseInt(localStorage.getItem('flux_avatar_idx') || 0), 28)}
-          </div>
-        </div>
-
-        <!-- Live Ticker -->
-        <div class="market-ticker">
-          <div class="ticker-content" id="ticker-target"></div>
-        </div>
-
-        <div class="main-feed" id="market-feed" style="padding-top: 40px !important;">
-          <h2 style="color: #ffaa00;">Flash Market</h2>
-          <!-- Market Items... -->
-        </div>
-
-        ${getBottomNavHTML()}
+      <!-- Live Ticker -->
+      <div class="market-ticker">
+        <div class="ticker-content" id="ticker-target"></div>
       </div>
-    `;
-    bindUniversalNav();
-  };
 
-  triggerMarket();
+      <div class="main-feed" id="market-feed" style="padding-top: 40px !important;">
+        <h2 style="color: #ffaa00;">Flash Market</h2>
+        <!-- stands injected here -->
+      </div>
+      
+      ${getBottomNavHTML()}
+    </div>
+  `;
 
-  document.getElementById('market-back-btn').addEventListener('click', renderHomePage);
-  bindUniversalNav(); // Link universal navigation
-  setNavActive(1);    // Mark break as active
+  bindUniversalNav(); 
+  setNavActive(1);    
   
   // Reset-on-Visit: Every visit grants 2 more notifications
   flashNotifTracker.extraCount = 2;
-  
   updateMarketDisplay();
 }
 

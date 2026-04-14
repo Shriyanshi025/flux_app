@@ -293,8 +293,8 @@ input:focus {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem var(--screen-pad-x);
-  padding-top: max(2rem, env(safe-area-inset-top)); /* safe area offset */
+  padding: 0.5rem var(--screen-pad-x);
+  padding-top: max(1.5rem, env(safe-area-inset-top)); /* compressed offset */
 
   background: rgba(19, 19, 19, 0.85); /* Semi-transparent header */
   backdrop-filter: blur(20px);
@@ -351,7 +351,7 @@ input:focus {
   width: 100%;
   max-height: 100vh;
   overflow-y: auto !important;
-  padding: 30px var(--screen-pad-x) 120px var(--screen-pad-x) !important; /* Calibrated 1.3-1.5cm spacing */
+  padding: 15px var(--screen-pad-x) 120px var(--screen-pad-x) !important; /* Calibrated 1.3-1.5cm spacing */
   display: flex;
   flex-direction: column;
   gap: 1.2rem;
@@ -361,7 +361,7 @@ input:focus {
 }
 
 .home-greeting {
-  padding: 10px var(--screen-pad-x) 0; /* Tightened top-nav gap */
+  padding: 0px var(--screen-pad-x) 0; /* Minimized top-nav gap */
   font-family: var(--font-logo);
   font-size: 1.1rem;
   font-weight: 300;
