@@ -1423,11 +1423,6 @@ function getBottomNavHTML() {
   `;
 }
 
-function renderHomePage() {
-  const appEl = document.querySelector('#app');
-  renderHomeHTML(appEl);
-  bindUniversalNav();
-}
 
 function bindUniversalNav() {
   // Navigation Icons
