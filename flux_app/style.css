@@ -26,10 +26,10 @@ body {
   justify-content: center;
   min-height: 100vh;
   font-family: var(--font-primary);
-  background: black; /* Literal Revert */
+  background: black;
   color: var(--text-main);
-  overflow: hidden; /* Literal Revert */
-  height: 100vh;
+  overflow-x: hidden; /* Restored for natural flow-based scrolling */
+  overflow-y: auto;
   transition: all 1s ease;
 }
 
@@ -328,30 +328,25 @@ input:focus {
 }
 
 .home-greeting {
+  padding: 180px var(--screen-pad-x) 2.5rem; /* Massive clearance for Premium Breathing Room */
   font-family: var(--font-logo);
-  font-weight: 100;
-  font-size: 1.4rem;
-  color: #fff;
-  text-shadow: 0 0 15px rgba(0, 255, 204, 0.6);
+  font-size: 1.1rem;
+  font-weight: 300;
+  letter-spacing: 0.15em;
+  color: var(--text-muted);
   text-align: center;
-  padding: 0 var(--screen-pad-x);
-  margin-top: 3rem;
-  margin-bottom: -4px;
-  letter-spacing: 0.05rem;
-
-
-
   text-transform: uppercase;
   width: 100%;
+  margin: 0 !important;
+  text-shadow: 0 0 15px rgba(0, 255, 204, 0.4);
 }
 
 
 .main-feed {
   flex: 1;
   width: 100%;
-  max-height: 100vh;
-  overflow-y: auto !important;
-  padding: 120px var(--screen-pad-x) 120px var(--screen-pad-x) !important; /* Enforced 1.5cm clearance */
+  min-height: 100vh;
+  padding: 85px var(--screen-pad-x) 150px var(--screen-pad-x); /* Standardized clearance */
   display: flex;
   flex-direction: column;
   gap: 1.2rem;
@@ -360,14 +355,14 @@ input:focus {
   scrollbar-color: rgba(255,255,255,0.1) transparent;
 }
 
-.home-greeting {
-  padding: 120px var(--screen-pad-x) 0; /* Enforced 1.5cm clearance */
-  font-family: var(--font-logo);
-  font-size: 1.1rem;
-  font-weight: 300;
-  letter-spacing: 0.15em;
-  color: var(--text-muted);
-  margin-bottom: 0px !important; /* Managed by feed padding */
+.market-ticker {
+  position: relative;
+  z-index: 10;
+  margin-top: 85px; /* CRITICAL: Clears Sticky Header */
+  background: rgba(0,0,0,0.5);
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  padding: 0.8rem 0;
+  overflow: hidden;
 }
 
 #home-feed.main-feed {
@@ -494,17 +489,18 @@ input:focus {
   width: 100%;
   max-width: 600px;
   height: 85px;
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(20px);
+  background: rgba(0, 0, 0, 0.9);
+  backdrop-filter: blur(25px); /* Increased blur */
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-bottom: none;
   border-radius: 30px 30px 0 0;
   display: flex;
   justify-content: space-around;
   align-items: center;
-  z-index: 100;
+  z-index: 5000; /* Locked to superior layer */
   padding-bottom: env(safe-area-inset-bottom);
-  box-shadow: 0 -10px 40px rgba(0,0,0, 0.6);
+  box-shadow: 0 -20px 60px rgba(0,0,0, 0.9);
+  pointer-events: auto; /* Fix for touch unresponsiveness */
 }
 
 .nav-item {
@@ -753,9 +749,7 @@ input:focus {
   transform: translateY(0);
 }
 
-.bottom-nav {
-  z-index: 100; /* Ensure nav is always on top of copyright */
-}
+
 
 /* CINEMATIC ANIMATIONS FOR DEMO */
 @keyframes pulse {
@@ -1091,9 +1085,21 @@ input:focus {
   /* Inherit from .nav-back-btn */
 }
 
-/* === THE CURVED DECK (Profile & Menu Overlays) === */
+.profile-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 99999; /* Absolute superior layer */
+  background: rgba(0,0,0,0.85);
+  backdrop-filter: blur(10px);
+  display: grid;
+  place-items: center; /* PERFECT ABSOLUTE CENTERING */
+  animation: fadeIn 0.3s ease;
+}
+
 .curved-deck {
-  background: #0a0a0c !important; /* Total Obsidian Opacity - Zero Bleed */
+  background: #0a0a0c !important;
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 40px;
   padding: 3.5rem 4rem; 
@@ -1103,14 +1109,12 @@ input:focus {
   display: flex;
   flex-direction: column;
   align-items: center;
-  position: fixed; /* Enforces absolute centering */
-  bottom: 120px; 
-  left: 50%;
-  transform: translateX(-50%);
+  position: relative; /* Centers within the grid overlay */
   overflow: visible; 
-  z-index: 10000;
   animation: deckSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
 /* === THE 2x2 ENTRY GRID === */
 .entry-grid {

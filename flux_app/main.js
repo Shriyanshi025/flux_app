@@ -409,7 +409,7 @@ function renderHomeHTML(appEl) {
       </div>
 
       <!-- Scrollable content -->
-      <div class="main-feed" id="home-feed" style="padding-top: 10px !important;">
+      <div class="main-feed" id="home-feed">
         <div class="promo-card card-arrival">
           <h3>Arrival: Green Carpet</h3>
           <p>Book a 10-minute arrival slot up to 7 days in advance. Arrive on time, unlock the Fast Lane.</p>
@@ -503,7 +503,7 @@ function renderFlashMarket() {
         <div class="ticker-content" id="ticker-target"></div>
       </div>
 
-      <div class="main-feed" id="market-feed" style="padding-top: 10px !important;">
+      <div class="main-feed" id="market-feed">
         <h2 style="color: #ffaa00;">Flash Market</h2>
         <!-- stands injected here -->
       </div>
@@ -918,7 +918,7 @@ function renderProfilePage() {
   const d = document.createElement('div');
   d.id = 'profile-view';
   d.className = 'profile-overlay animated p5-active';
-  d.style = "position:fixed; inset:0; z-index:1500; padding: 2rem; display: flex; align-items: center; justify-content: center; overflow-y: auto;";
+  // Style pushed to CSS file for absolute grid centering
   d.innerHTML = `
      <div class="curved-deck">
         <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 1.5rem; margin-bottom: 1.5rem;">
@@ -955,7 +955,7 @@ function renderProfilePage() {
      </div>
 
   `;
-  document.getElementById('app').appendChild(d);
+  document.body.appendChild(d);
   document.getElementById('close-profile').addEventListener('click', () => {
     document.getElementById('profile-view').remove();
   });
@@ -1420,14 +1420,18 @@ function getBottomNavHTML() {
     <!-- Sticky Bottom Nav -->
     <div class="bottom-nav">
       <div class="nav-item" data-color="var(--accent)" data-index="0" id="nav-home">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Home
+      </div>
+      <div class="nav-item" data-color="#00ffe1" data-index="1" id="nav-entry-btn">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
         Entry
       </div>
-      <div class="nav-item" data-color="#00ffcc" data-index="1" id="nav-break">
+      <div class="nav-item" data-color="#00ffcc" data-index="2" id="nav-break">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
         Break
       </div>
-      <div class="nav-item" data-color="#ff003c" data-index="2" id="nav-exit">
+      <div class="nav-item" data-color="#ff003c" data-index="3" id="nav-exit">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         Exit
       </div>
@@ -1442,9 +1446,14 @@ function bindUniversalNav() {
     setNavActive(0);
     renderHomePage(); 
   });
+
+  document.getElementById('nav-entry-btn')?.addEventListener('click', () => {
+    setNavActive(1);
+    renderEntryModule(); 
+  });
   
   document.getElementById('nav-break')?.addEventListener('click', () => {
-    setNavActive(1);
+    setNavActive(2);
     renderFlashMarket();
   });
 
@@ -1456,7 +1465,7 @@ function bindUniversalNav() {
   // Profile Avatar (Universal)
   document.querySelectorAll('#nav-avatar').forEach(el => {
     el.addEventListener('click', () => {
-      renderProfileDeck(document.querySelector('#app-container') || document.querySelector('#app'));
+      renderProfilePage(); // Fixed function name mismatch
     });
   });
 
