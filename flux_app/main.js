@@ -489,7 +489,7 @@ function renderHomeHTML() {
         <div class="promo-card card-departure">
           <h3>Departure: Soft Exit</h3>
           <p>Avoid post-game congestion. Stay in your seat, unlock exclusive interviews, or redeem a 20% ride discount!</p>
-          <button class="btn-primary">Access Soft-Exit Perks</button>
+          <button class="btn-primary" id="open-exit-btn">Access Soft-Exit Perks</button>
         </div>
       </div>
     </div>
@@ -503,6 +503,9 @@ function renderHomeHTML() {
   });
   document.getElementById('open-market-btn')?.addEventListener('click', () => {
     renderFlashMarket();
+  });
+  document.getElementById('open-exit-btn')?.addEventListener('click', () => {
+    renderExitModule();
   });
 
   // Start market background simulation if not running
@@ -1232,7 +1235,7 @@ function renderLockout(container) {
       <div class="promo-card" style="border-color: #ffaa00; background: rgba(10,10,20,0.4); text-align: left; padding: 1.2rem;">
         <p style="color: #ffaa00; font-weight: 700; font-size: 0.8rem; margin-bottom: 8px; text-transform: uppercase;">Zero-Trust Verification</p>
         <p style="color: rgba(255,255,255,0.6); font-size: 0.8rem; line-height: 1.6; margin: 0;">
-          Physical proximity ensures that only fans physically present at the gate can claim their slot. Evaluation demo bypass is active.
+          Physical proximity ensures that only attendees physically present at the gate can claim their slot. Evaluation demo bypass is active.
         </p>
       </div>
 
@@ -1510,17 +1513,279 @@ function bindUniversalNav() {
 
 
 
+
+// ─── EXIT: URGENCY ENGINE ─────────────────────────────────────────────────────
+let exitInterval = null;
+let exitCountdown = 20 * 60; // 20 minutes in seconds
+let exitPhase = 1; // 1=Context Check, 2=Tiered Sort, 3=Release
+
+const exitTierData = {
+  sprinter: { count: 1240, label: 'Sprinters', desc: 'Critical — Train / Flight', color: '#ff003c', icon: '🚆', action: 'FAST TRACK ACTIVE', pct: 22 },
+  stroller:  { count: 2870, label: 'Strollers',  desc: 'Flexible — Rideshare',     color: '#ffaa00', icon: '🚗', action: 'SURGE ALERT SENT',  pct: 51 },
+  anchor:    { count: 1630, label: 'Anchors',    desc: 'Relaxed — Local / Walk',   color: '#8400ff', icon: '🎬', action: 'SOFT EXIT LOCKED',  pct: 27 },
+};
+
+function getExitPhaseLabel(p) {
+  return ['', 'CONTEXT CHECK', 'TIERED SORT', 'WAVE RELEASE'][p];
+}
+
+function getExitPhaseDesc(p) {
+  return [
+    '',
+    'Analyzing attendee transport profiles…',
+    'Assigning Flow Tiers: Sprinters → Strollers → Anchors',
+    'Wave 1 released. Wave 2 in 15 min. Wave 3 in 30 min.'
+  ][p];
+}
+
+function getUserTier() {
+  // Simulated: derive from localStorage or default to stroller
+  const t = localStorage.getItem('flux_exit_tier') || 'stroller';
+  return exitTierData[t];
+}
+
+function fmtCountdown(s) {
+  const m = Math.floor(s / 60).toString().padStart(2, '0');
+  const sec = (s % 60).toString().padStart(2, '0');
+  return `${m}:${sec}`;
+}
+
 function renderExitModule() {
   if (!authGuard()) return;
 
+  const tier = getUserTier();
+
   const content = `
-    <div id="exit-container">
-      <!-- Exit page content coming soon -->
+    <div id="exit-container" style="width:100%;">
+
+      <!-- ① Phase Status Bar (like market ticker) -->
+      <div class="market-ticker" id="exit-ticker" style="padding:0.75rem 1rem; display:flex; align-items:center; gap:1.5rem; flex-wrap:wrap;">
+        <div style="display:flex; align-items:center; gap:0.5rem;">
+          <span style="font-size:0.65rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.08em;">Phase</span>
+          <span id="exit-phase-badge" style="background:#ff003c; color:#fff; font-size:0.7rem; font-family:var(--font-logo); padding:2px 10px; border-radius:20px; font-weight:700; letter-spacing:0.05em;">${getExitPhaseLabel(exitPhase)}</span>
+        </div>
+        <div style="flex:1; font-size:0.75rem; color:var(--text-muted); font-family:var(--font-logo);" id="exit-phase-desc">${getExitPhaseDesc(exitPhase)}</div>
+        <div style="font-family:var(--font-logo); font-size:1rem; color:#ff003c; letter-spacing:0.1em; font-weight:700;">
+          T‑MINUS <span id="exit-countdown">${fmtCountdown(exitCountdown)}</span>
+        </div>
+      </div>
+
+      <!-- ② Main Feed -->
+      <div class="main-feed" style="gap:1.2rem;">
+
+        <!-- Personal Flow Score Card -->
+        <div class="promo-card" id="exit-personal-card" style="border-color:${tier.color}; background:${tier.color}18; position:relative; overflow:hidden;">
+          <div style="position:absolute; top:0; right:0; width:120px; height:120px; background:${tier.color}10; border-radius:50%; transform:translate(30%,-30%);"></div>
+          <div style="display:flex; align-items:center; gap:1rem;">
+            <div style="font-size:2.5rem;">${tier.icon}</div>
+            <div style="text-align:left;">
+              <p style="color:${tier.color}; font-size:0.65rem; text-transform:uppercase; letter-spacing:0.1em; margin:0 0 3px 0; font-family:var(--font-logo);">Your Flow Tier</p>
+              <h2 style="color:#fff; margin:0; font-size:1.6rem; font-weight:900; line-height:1;">${tier.label.toUpperCase()}</h2>
+              <p style="color:var(--text-muted); font-size:0.8rem; margin:4px 0 0 0;">${tier.desc}</p>
+            </div>
+            <div style="margin-left:auto; text-align:right;">
+              <div style="background:${tier.color}; color:#000; font-size:0.65rem; font-weight:900; padding:4px 12px; border-radius:20px; letter-spacing:0.08em;">${tier.action}</div>
+            </div>
+          </div>
+
+          <!-- Surge / incentive info row -->
+          <div id="exit-personal-info" style="border-top:1px solid ${tier.color}30; padding-top:0.8rem; margin-top:0.5rem;">
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.5rem; text-align:center;">
+              <div>
+                <p style="color:${tier.color}; font-size:1.1rem; font-weight:700; margin:0;" id="exit-stat-wait">4 min</p>
+                <p style="color:var(--text-muted); font-size:0.65rem; margin:2px 0 0 0; text-transform:uppercase;">Gate Wait</p>
+              </div>
+              <div>
+                <p style="color:${tier.color}; font-size:1.1rem; font-weight:700; margin:0;" id="exit-stat-surge">2.8×</p>
+                <p style="color:var(--text-muted); font-size:0.65rem; margin:2px 0 0 0; text-transform:uppercase;">Surge Now</p>
+              </div>
+              <div>
+                <p style="color:${tier.color}; font-size:1.1rem; font-weight:700; margin:0;" id="exit-stat-crowd">68%</p>
+                <p style="color:var(--text-muted); font-size:0.65rem; margin:2px 0 0 0; text-transform:uppercase;">Gate Load</p>
+              </div>
+            </div>
+          </div>
+
+          <button class="btn-primary" id="exit-action-btn" style="width:100%; background:${tier.color}; color:${tier.color === '#ff003c' ? '#fff' : '#000'};">
+            ${tier === exitTierData.sprinter ? '🚆 Open Fast Track Route' : tier === exitTierData.stroller ? '💰 View Surge Timeline' : '🎬 Unlock Exclusive Content'}
+          </button>
+        </div>
+
+        <!-- Crowd Wave Meter -->
+        <div class="promo-card" style="border-color:rgba(255,255,255,0.08);">
+          <p style="color:var(--text-muted); font-size:0.65rem; text-transform:uppercase; letter-spacing:0.1em; margin:0 0 0.8rem 0;">Live Crowd Wave Status</p>
+          <div style="display:flex; flex-direction:column; gap:0.6rem;">
+            ${Object.entries(exitTierData).map(([k, t]) => `
+              <div style="display:flex; align-items:center; gap:0.8rem;">
+                <span style="font-size:1rem; width:24px;">${t.icon}</span>
+                <div style="flex:1;">
+                  <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
+                    <span style="font-size:0.75rem; color:#fff; font-weight:600;">${t.label}</span>
+                    <span style="font-size:0.7rem; color:${t.color}; font-family:var(--font-logo);">${t.count.toLocaleString()} attendees</span>
+                  </div>
+                  <div style="background:rgba(255,255,255,0.06); border-radius:4px; height:6px; overflow:hidden;">
+                    <div style="width:${t.pct}%; height:100%; background:${t.color}; border-radius:4px; transition:width 1s ease;"></div>
+                  </div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <!-- The 3 Tier Strategy Cards -->
+        <p style="color:var(--text-muted); font-size:0.65rem; text-transform:uppercase; letter-spacing:0.12em; margin:0; padding:0 0 0.2rem 0;">Flow Tier Breakdown</p>
+
+        <!-- Tier 1: Sprinters -->
+        <div class="stand-card" style="border-color:#ff003c40; padding:1rem 1.2rem;">
+          <div class="stand-header">
+            <div class="stand-info">
+              <div class="type" style="color:#ff003c;">🚆 Tier 1 · Critical</div>
+              <h3 style="margin-top:4px;">The Sprinters</h3>
+            </div>
+            <div class="stand-price" style="background:#ff003c15; padding:6px 12px; border-radius:8px; border:1px solid #ff003c40;">
+              <span class="price-val" style="color:#ff003c; font-size:1rem;">GREEN</span>
+              <span class="price-delta" style="color:#ff003c;">FAST TRACK ▲</span>
+            </div>
+          </div>
+          <p style="color:var(--text-muted); font-size:0.8rem; line-height:1.5; margin:0;">Attendees with imminent train or flight connections. They receive a <strong style="color:#ff003c;">Fast Track</strong> notification — their exit route is highlighted on the AR map, guiding them to the least-congested gate immediately.</p>
+          <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+            <span style="background:#ff003c15; border:1px solid #ff003c30; color:#ff003c; font-size:0.65rem; padding:3px 10px; border-radius:20px;">Gate C Priority</span>
+            <span style="background:#ff003c15; border:1px solid #ff003c30; color:#ff003c; font-size:0.65rem; padding:3px 10px; border-radius:20px;">Empty Corridor</span>
+            <span style="background:#ff003c15; border:1px solid #ff003c30; color:#ff003c; font-size:0.65rem; padding:3px 10px; border-radius:20px;">AR Route Active</span>
+          </div>
+        </div>
+
+        <!-- Tier 2: Strollers -->
+        <div class="stand-card" style="border-color:#ffaa0040; padding:1rem 1.2rem;">
+          <div class="stand-header">
+            <div class="stand-info">
+              <div class="type" style="color:#ffaa00;">🚗 Tier 2 · Flexible</div>
+              <h3 style="margin-top:4px;">The Strollers</h3>
+            </div>
+            <div class="stand-price" style="background:#ffaa0015; padding:6px 12px; border-radius:8px; border:1px solid #ffaa0040;">
+              <span class="price-val" style="color:#ffaa00; font-size:1rem;" id="surge-now">$50</span>
+              <span class="price-delta" style="color:#ffaa00;">NOW ▼ WAIT</span>
+            </div>
+          </div>
+          <p style="color:var(--text-muted); font-size:0.8rem; line-height:1.5; margin:0;">Rideshare attendees receive a <strong style="color:#ffaa00;">Surge Alert</strong>. The app shows real savings: waiting just 20 minutes cuts their ride cost significantly — money is the motivator, not a mandate.</p>
+          <div style="background:rgba(255,170,0,0.06); border:1px solid #ffaa0030; border-radius:10px; padding:0.8rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div style="text-align:center;">
+                <p style="color:#ff003c; font-size:1.2rem; font-weight:700; margin:0;" id="surge-price-now">$50</p>
+                <p style="color:var(--text-muted); font-size:0.65rem; margin:2px 0 0 0;">Leave Now</p>
+              </div>
+              <div style="color:var(--text-muted); font-size:0.8rem;">→</div>
+              <div style="text-align:center;">
+                <p style="color:#ffaa00; font-size:1.2rem; font-weight:700; margin:0;">$20</p>
+                <p style="color:var(--text-muted); font-size:0.65rem; margin:2px 0 0 0;">Wait 20 min</p>
+              </div>
+              <div style="color:var(--text-muted); font-size:0.8rem;">→</div>
+              <div style="text-align:center;">
+                <p style="color:var(--accent); font-size:1.2rem; font-weight:700; margin:0;">$12</p>
+                <p style="color:var(--text-muted); font-size:0.65rem; margin:2px 0 0 0;">Wait 40 min</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tier 3: Anchors -->
+        <div class="stand-card" style="border-color:#8400ff40; padding:1rem 1.2rem;">
+          <div class="stand-header">
+            <div class="stand-info">
+              <div class="type" style="color:#8400ff;">🎬 Tier 3 · Relaxed</div>
+              <h3 style="margin-top:4px;">The Anchors</h3>
+            </div>
+            <div class="stand-price" style="background:#8400ff15; padding:6px 12px; border-radius:8px; border:1px solid #8400ff40;">
+              <span class="price-val" style="color:#8400ff; font-size:1rem;">LOCKED</span>
+              <span class="price-delta" style="color:#8400ff;">15 MIN ⏳</span>
+            </div>
+          </div>
+          <p style="color:var(--text-muted); font-size:0.8rem; line-height:1.5; margin:0;">Local and flexible attendees receive the <strong style="color:#8400ff;">Soft Exit</strong>. Their exit pass is locked for 15 minutes in exchange for exclusive locker room interview content streaming live on the screen.</p>
+          <div style="background:rgba(132,0,255,0.06); border:1px solid #8400ff30; border-radius:10px; padding:0.8rem; display:flex; align-items:center; gap:0.8rem;">
+            <span style="font-size:1.5rem;">🎙️</span>
+            <div>
+              <p style="color:#8400ff; font-size:0.75rem; font-weight:700; margin:0;">LIVE: Locker Room Access</p>
+              <p style="color:var(--text-muted); font-size:0.7rem; margin:3px 0 0 0;">Captain's post-match interview · Exclusive to Anchor attendees</p>
+            </div>
+            <div style="margin-left:auto; background:#8400ff; color:#fff; font-size:0.65rem; padding:4px 10px; border-radius:20px; font-weight:700;" id="anchor-timer">15:00</div>
+          </div>
+        </div>
+
+        <!-- Executive Summary: 4 Pillars -->
+        <div class="promo-card" style="border-color:rgba(255,255,255,0.1); background:rgba(255,255,255,0.02);">
+          <p style="color:var(--text-muted); font-size:0.65rem; text-transform:uppercase; letter-spacing:0.12em; margin:0 0 1rem 0;">The 4 Strategic Pillars</p>
+          <div style="display:flex; flex-direction:column; gap:0.8rem;">
+            ${[
+              { icon:'✈️', title:'Priority Queuing',     body:'Like boarding a plane — attendees with tight connections exit first. Feels fair because it is based on genuine need.' },
+              { icon:'🎬', title:'Soft Exit Retention',  body:'Keep 30% in seats for just 15 minutes with exclusive content. Gate congestion drops by nearly half.' },
+              { icon:'💰', title:'Price Signalling',     body:'Showing the live surge cost of leaving now convinces rideshare attendees to wait — naturally, without force.' },
+              { icon:'🛡️', title:'Safety through Speed', body:'Removing panicked travelers from the general crowd first lowers overall stress levels at every gate.' },
+            ].map(p => `
+              <div style="display:flex; gap:0.8rem; align-items:flex-start; border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:0.8rem;">
+                <span style="font-size:1.3rem; flex-shrink:0;">${p.icon}</span>
+                <div>
+                  <p style="color:#fff; font-weight:700; font-size:0.85rem; margin:0 0 3px 0;">${p.title}</p>
+                  <p style="color:var(--text-muted); font-size:0.75rem; line-height:1.5; margin:0;">${p.body}</p>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+      </div>
     </div>
   `;
 
   mountDashboardModule(content, 3, 'EXIT');
+
+  document.getElementById('nav-back-btn')?.addEventListener('click', renderHomePage);
+
+  // ── Simulation loop ────────────────────────────────────────────
+  if (exitInterval) clearInterval(exitInterval);
+  exitInterval = setInterval(() => {
+    // Countdown
+    if (exitCountdown > 0) exitCountdown--;
+    const cd = document.getElementById('exit-countdown');
+    if (cd) cd.textContent = fmtCountdown(exitCountdown);
+
+    // Phase progression
+    const newPhase = exitCountdown > 10 * 60 ? 1 : exitCountdown > 3 * 60 ? 2 : 3;
+    if (newPhase !== exitPhase) {
+      exitPhase = newPhase;
+      const badge = document.getElementById('exit-phase-badge');
+      const desc  = document.getElementById('exit-phase-desc');
+      const colors = ['', '#ff003c', '#ffaa00', '#8400ff'];
+      if (badge) { badge.textContent = getExitPhaseLabel(exitPhase); badge.style.background = colors[exitPhase]; }
+      if (desc)  desc.textContent = getExitPhaseDesc(exitPhase);
+    }
+
+    // Live stats flicker
+    const waits  = ['2 min','4 min','6 min','3 min','5 min','7 min'];
+    const surges = ['1.4×','2.1×','2.8×','3.2×','1.9×','2.4×'];
+    const loads  = ['42%','55%','68%','74%','61%','48%'];
+    const t = Math.floor(Date.now() / 3000) % waits.length;
+    const w = document.getElementById('exit-stat-wait');
+    const s = document.getElementById('exit-stat-surge');
+    const c = document.getElementById('exit-stat-crowd');
+    if (w) w.textContent = waits[t];
+    if (s) s.textContent = surges[t];
+    if (c) c.textContent = loads[t];
+
+    // Surge price animation
+    const surgePrices = ['$48','$51','$55','$47','$53','$50'];
+    const sp = document.getElementById('surge-price-now');
+    if (sp) sp.textContent = surgePrices[t];
+
+    // Anchor timer
+    const anchorEl = document.getElementById('anchor-timer');
+    if (anchorEl) {
+      const aMin = Math.floor((exitCountdown % (15*60)) / 60).toString().padStart(2,'0');
+      const aSec = (exitCountdown % 60).toString().padStart(2,'0');
+      anchorEl.textContent = `${aMin}:${aSec}`;
+    }
+  }, 1000);
 }
+
 
 /**
  * P5.js FLOW-FIELD ENGINE - LITERAL REVERT
