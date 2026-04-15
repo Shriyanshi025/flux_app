@@ -358,6 +358,71 @@ function hibernateEverything() {
   marketInterval = null;
 }
 
+function mountDashboardModule(moduleHtml, activeIndex = 0, pageTitle = null) {
+  const appEl = document.querySelector('#app');
+  if (!appEl) return;
+
+  // 1. Determine Header Type
+  const isHome = activeIndex === 0 && !pageTitle;
+  
+  const headerHtml = isHome ? `
+    <div class="top-nav">
+      <div style="display: flex; align-items: center; gap: 1rem;">
+        <div class="icon" id="nav-menu-btn">
+           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </div>
+        <div class="nav-logo" id="header-logo" style="cursor: pointer;">FLUX</div>
+      </div>
+      <div class="avatar" style="cursor: pointer;" id="nav-avatar">
+         ${getAvatarHTML(parseInt(localStorage.getItem('flux_avatar_idx') || 0), 28)}
+      </div>
+    </div>
+  ` : `
+    <div class="top-nav">
+      <div style="display: flex; align-items: center; gap: 1rem;">
+        <button id="nav-back-btn" class="nav-back-btn" title="Back to Dashboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </button>
+        <div class="logo-small">${pageTitle || 'DASHBOARD'}</div>
+      </div>
+      <div class="avatar" style="cursor: pointer;" id="nav-avatar">
+         ${getAvatarHTML(parseInt(localStorage.getItem('flux_avatar_idx') || 0), 28)}
+      </div>
+    </div>
+  `;
+
+  // 2. Build Shell
+  // Viewport handles padding internally via CSS for perfect stability
+  appEl.innerHTML = `
+    <div id="shell-container">
+      <div id="shell-header">${headerHtml}</div>
+      <div id="module-viewport" class="animated">
+        ${moduleHtml}
+      </div>
+      <div id="shell-footer">
+        ${getBottomNavHTML()}
+      </div>
+    </div>
+  `;
+
+  // 3. Bind Core Nav Listeners
+  bindUniversalNav();
+  setNavActive(activeIndex);
+
+  // 4. Bind specific UI triggers
+  document.getElementById('nav-menu-btn')?.addEventListener('click', () => {
+    renderSideNav();   // creates nav elements on first call (guarded internally)
+    toggleSideNav(true);
+  });
+  document.getElementById('nav-back-btn')?.addEventListener('click', renderHomePage);
+  document.getElementById('header-logo')?.addEventListener('click', renderHomePage);
+  
+  // Update Profile clicks (since we have new DOM elements)
+  document.querySelectorAll('#nav-avatar').forEach(el => {
+    el.addEventListener('click', renderProfilePage);
+  });
+}
+
 function renderHomePage() {
   if (!authGuard()) return;
 
@@ -368,9 +433,12 @@ function renderHomePage() {
     document.body.classList.add('theme-blue');
     document.body.classList.remove('theme-magenta');
     p5Instance?.wake(); 
-    renderHomeHTML(appEl);
+    
+    // Mount Home Content via Shell
+    renderHomeHTML();
     return;
   }
+
 
   const preloadImg = new Image();
   preloadImg.src = '/drone_shot.png';
@@ -390,37 +458,21 @@ function renderHomePage() {
       if (drone) drone.remove();
       sessionStorage.setItem('flux_drone_played', 'true');
       p5Instance?.wake(); 
-      renderHomeHTML(appEl);
+      renderHomeHTML();
     }, 3000);
   };
 }
 
-function renderHomeHTML(appEl) {
-  appEl.innerHTML = `
-    <div id="home-container" class="animated">
-      
-      <!-- Header -->
-      <div class="top-nav">
-        <div style="display: flex; align-items: center; gap: 1rem;">
-          <div class="icon" id="nav-menu-btn">
-             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-          </div>
-          <div class="nav-logo" id="header-logo" style="cursor: pointer;">FLUX</div>
-        </div>
-
-        <div class="avatar" id="nav-avatar">
-           ${getAvatarHTML(parseInt(localStorage.getItem('flux_avatar_idx') || 0), 28)}
-        </div>
-
-      </div>
-
+function renderHomeHTML() {
+  const content = `
+    <div id="home-container" style="width: 100%;">
       <!-- User Greeting -->
-      <div class="home-greeting" id="home-greeting" style="padding: 0 var(--screen-pad-x); margin: 0 !important;">
+      <div class="home-greeting" id="home-greeting" style="margin: 0 !important; text-align: center; color: #fff; font-size: 1.1rem; letter-spacing: 0.1em; text-transform: uppercase; font-family: var(--font-logo);">
         HELLO, ${localStorage.getItem('flux_user')?.split(' ')[0].toUpperCase() || 'GUEST'}
       </div>
 
       <!-- Scrollable content -->
-      <div class="main-feed" id="home-feed">
+      <div class="main-feed" id="home-feed" style="gap: 30px;">
         <div class="promo-card card-arrival">
           <h3>Arrival: Green Carpet</h3>
           <p>Book a 10-minute arrival slot up to 7 days in advance. Arrive on time, unlock the Fast Lane.</p>
@@ -431,7 +483,7 @@ function renderHomeHTML(appEl) {
         <div class="promo-card card-halftime">
           <h3>Halftime: Flash Market</h3>
           <p>40k people want Burgers. Tacos are empty. Take 50% Off deals and skip the concourse crush entirely.</p>
-          <button class="btn-primary">Live Heatmap Deals</button>
+          <button class="btn-primary" id="open-market-btn">Live Heatmap Deals</button>
         </div>
 
         <div class="promo-card card-departure">
@@ -439,112 +491,69 @@ function renderHomeHTML(appEl) {
           <p>Avoid post-game congestion. Stay in your seat, unlock exclusive interviews, or redeem a 20% ride discount!</p>
           <button class="btn-primary">Access Soft-Exit Perks</button>
         </div>
-
-        <!-- Sentinel for copyright detection -->
-        <div id="end-sentinel" style="height: 1px; width: 100%; margin-top: 10vh;"></div>
       </div>
-
-      ${getBottomNavHTML()}
     </div>
   `;
 
-  bindHomeEvents();
-  bindUniversalNav();
-  renderSideNav(); 
-  initSmartHomeLogic(); 
-  
+  mountDashboardModule(content, 0);
+
+  // Home Specific Listeners
+  document.getElementById('open-entry-btn')?.addEventListener('click', () => {
+    renderEntryModule();
+  });
+  document.getElementById('open-market-btn')?.addEventListener('click', () => {
+    renderFlashMarket();
+  });
+
   // Start market background simulation if not running
   if (!marketInterval) {
     marketInterval = setInterval(updateMarketSimulation, 4000);
   }
 }
-function bindHomeEvents() {
-  // Flash Market Bindings (Card and Nav)
-  const flashMarketCard = document.querySelector('.card-halftime button');
-  if (flashMarketCard) flashMarketCard.addEventListener('click', () => {
-    setNavActive(1);
-    renderFlashMarket();
-  });
-  
-  document.getElementById('nav-home')?.addEventListener('click', () => {
-    setNavActive(0);
-    renderEntryModule();
-  });
-  
-  document.getElementById('nav-break')?.addEventListener('click', () => {
-    setNavActive(1);
-    renderFlashMarket();
-  });
-
-  document.getElementById('nav-exit')?.addEventListener('click', () => {
-    setNavActive(2);
-    // Soft Exit module placeholder
-  });
-
-  document.getElementById('header-logo')?.addEventListener('click', () => {
-    renderHomePage();
-  });
-
-  // Hamburger & Profile Bindings
-  document.getElementById('nav-menu-btn')?.addEventListener('click', () => {
-    toggleSideNav(true);
-  });
-  
-  document.getElementById('nav-avatar')?.addEventListener('click', () => {
-    renderProfilePage();
-  });
-}
 
 function renderFlashMarket() {
   if (!authGuard()) return;
-  const container = document.querySelector('#app');
-  container.innerHTML = `
-    <div id="app-container" class="animated">
-      <div class="top-nav">
-        <div style="display: flex; align-items: center; gap: 1rem;">
-           <div class="nav-back-btn" id="market-back-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg></div>
-           <div class="nav-logo">MARKET</div>
-        </div>
-        <div class="avatar" id="nav-avatar">
-           ${getAvatarHTML(parseInt(localStorage.getItem('flux_avatar_idx') || 0), 28)}
-        </div>
-      </div>
 
-      <!-- Live Ticker -->
-      <div class="market-ticker">
-        <div class="ticker-content" id="ticker-target"></div>
+  const content = `
+    <div class="market-ticker" id="market-ticker">
+      <div class="ticker-tape" id="ticker-tape">
+        <!-- Items injected by simulation loop (doubled for seamless loop) -->
       </div>
-
-      <div class="main-feed" id="market-feed">
-        <h2 style="color: #ffaa00;">Flash Market</h2>
-        <!-- stands injected here -->
+    </div>
+    <div id="market-container" style="width:100%;">
+      <div id="market-feed" class="market-feed">
+        ${renderHeatmap()}
       </div>
-      
-      ${getBottomNavHTML()}
     </div>
   `;
 
+  mountDashboardModule(content, 2, 'MARKET');
 
-  bindUniversalNav(); 
-  setNavActive(1);    
+  document.getElementById('nav-back-btn')?.addEventListener('click', renderHomePage);
   
-  // Reset-on-Visit: Every visit grants 2 more notifications
-  flashNotifTracker.extraCount = 2;
-  updateMarketDisplay();
+  // Simulation Guard
+  if (!marketInterval) {
+    marketInterval = setInterval(updateMarketSimulation, 2000);
+  }
+  updateMarketSimulation(); 
 }
 
 function updateMarketDisplay() {
-  const tickerEl = document.getElementById('ticker-target');
+  const tapeEl = document.getElementById('ticker-tape');
   const feedEl = document.getElementById('market-feed');
-  if (!tickerEl || !feedEl) return;
+  if (!feedEl) return;
 
-  // Refresh Ticker
-  tickerEl.innerHTML = mockMarketData.map(item => `
-    <span class="ticker-item ${item.trend}">
-      ${item.name.toUpperCase()} / WAIT: ${item.wait}m 
-      ${item.trend === 'up' ? '▲' : item.trend === 'down' ? '▼' : '•'}
-    </span>
-  `).join('');
+  // Refresh Ticker tape — duplicate items for seamless infinite scroll
+  if (tapeEl) {
+    const items = mockMarketData.map(item => `
+      <span class="ticker-item ${item.trend}">
+        ${item.name.toUpperCase()} &nbsp;|&nbsp; ${item.wait}m 
+        ${item.trend === 'up' ? '▲' : item.trend === 'down' ? '▼' : '—'}
+      </span>
+    `).join('');
+    // Duplicate for seamless loop
+    tapeEl.innerHTML = items + items;
+  }
 
   // Refresh Feed
   feedEl.innerHTML = mockMarketData.map(item => {
@@ -580,9 +589,45 @@ function updateMarketDisplay() {
     `;
   }).join('');
 }
+function renderHeatmap() {
+  return mockMarketData.map(item => {
+    const density = (item.wait / 25) * 100;
+    const barColor = density > 70 ? '#ff003c' : density > 40 ? '#ffaa00' : 'var(--accent)';
+    const priceColor = item.priceCurrent < item.priceBase ? 'var(--accent)' : '#fff';
+
+    return `
+      <div class="stand-card">
+        <div class="stand-header">
+          <div class="stand-info">
+            <h3>${item.name}</h3>
+            <span class="type">${item.type} • SECTOR ${item.sector}</span>
+          </div>
+          <div class="stand-price">
+            <span class="price-val" style="color: ${priceColor}">$${item.priceCurrent}</span>
+            <span class="price-delta" style="color: ${priceColor}">
+              ${item.priceCurrent < item.priceBase ? 'ARBITRAGE DEAL' : 'STANDARD PRICE'}
+            </span>
+          </div>
+        </div>
+        
+        <div class="density-system">
+          <div class="density-label">
+            <span>CONGESTION: ${item.wait} MIN WAIT</span>
+            <span>${Math.round(density)}% LOAD</span>
+          </div>
+          <div class="density-bar-container">
+            <div class="density-bar" style="width: ${density}%; background: ${barColor}"></div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
 
 function showFlashDealAlert(congested, deal) {
+
   if (document.getElementById('flash-deal-active')) return;
+
   
   const overlay = document.createElement('div');
   overlay.id = 'flash-deal-active';
@@ -765,11 +810,12 @@ function renderProfileEdit() {
   const d = document.createElement('div');
   d.id = 'edit-profile-view';
   d.className = 'profile-overlay animated';
-  d.style = "position:fixed; inset:0; background:var(--bg-core); z-index:2000; padding: 2rem var(--screen-pad-x); display: flex; flex-direction: column; align-items: center;";
+  d.style = "position:fixed; top:0; left:0; right:0; bottom:0; background:var(--bg-core); z-index:4999; overflow-y:auto; overflow-x:hidden; scrollbar-width:none;";
 
   d.innerHTML = `
+    <div style="min-height:100%; width:100%; display:flex; flex-direction:column; align-items:center; padding: 120px var(--screen-pad-x) 140px; box-sizing:border-box;">
     <!-- Top: Centered Avatar & Name -->
-    <div style="text-align: center; margin-bottom: 3rem;">
+    <div style="text-align: center; margin-bottom: 1.5rem;">
       <div style="position: relative; width: fit-content; margin: 0 auto 1rem auto;">
         <div id="edit-avatar-container" class="avatar" style="width: 80px; height: 80px; background: ${getAvatarTheme(draft.avatar).bg}; border-width: 3px;">
            ${getAvatarHTML(draft.avatar, 40)}
@@ -785,7 +831,7 @@ function renderProfileEdit() {
     </div>
 
     <!-- Body: Left Aligned Credentials -->
-    <div style="width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 2rem;">
+    <div style="width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 1.5rem;">
       
       ${renderEditRow('Username', draft.user, 'edit-user')}
       ${renderEditRow('Mobile No', draft.mob, 'edit-mob')}
@@ -805,9 +851,10 @@ function renderProfileEdit() {
     </div>
 
     <!-- Footer: Confirm/Cancel -->
-    <div style="margin-top: 4rem; width: 100%; max-width: 400px; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+    <div style="margin-top: 2rem; margin-bottom: 1.5rem; width: 100%; max-width: 400px; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
        <button id="cancel-edit" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #888; padding: 1rem; border-radius: 12px; cursor: pointer; font-weight:600;">Cancel</button>
        <button id="confirm-edit" style="background: var(--accent); border: none; color: #000; padding: 1rem; border-radius: 12px; cursor: pointer; font-weight:800; box-shadow: 0 0 20px rgba(57,255,20,0.2);">Save Changes</button>
+    </div>
     </div>
   `;
 
@@ -923,18 +970,28 @@ function renderProfilePage() {
   const username = localStorage.getItem('flux_user') || 'User';
   const avatarIdx = parseInt(localStorage.getItem('flux_avatar_idx') || 0);
 
-  // Remove existing profile view if re-opened
-  const existing = document.getElementById('profile-view');
-  if (existing) existing.remove();
+  // Remove existing instances
+  document.getElementById('profile-view')?.remove();
+  document.getElementById('profile-backdrop')?.remove();
+
+  // === Backdrop: clicking outside the card closes popup ===
+  const backdrop = document.createElement('div');
+  backdrop.id = 'profile-backdrop';
+  backdrop.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:5999;';
+  document.body.appendChild(backdrop);
+
+  const closeAll = () => {
+    document.getElementById('profile-view')?.remove();
+    document.getElementById('profile-backdrop')?.remove();
+  };
+  backdrop.addEventListener('click', closeAll);
 
   const d = document.createElement('div');
   d.id = 'profile-view';
   d.className = 'profile-overlay animated p5-active';
-  // Style pushed to CSS file for absolute grid centering
   d.innerHTML = `
      <div class="curved-deck">
         <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 1.5rem; margin-bottom: 1.5rem;">
-          <!-- Identity Cluster -->
           <div style="display: flex; align-items: center; gap: 1.2rem;">
             <div class="avatar" style="width: 60px; height: 60px; background: ${getAvatarTheme(avatarIdx).bg}; border-width: 2.5px;">
                 ${getAvatarHTML(avatarIdx, 30)}
@@ -944,8 +1001,6 @@ function renderProfilePage() {
               <p style="font-size: 1.4rem; margin: 2px 0 0 0; color: #fff; font-weight: 700; line-height: 1;">${username}</p>
             </div>
           </div>
-
-          <!-- Isolated Management -->
           <div id="prof-popup-edit" style="background: var(--accent); color: #000; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2.5px solid var(--bg-core); cursor: pointer; box-shadow: 0 4px 15px rgba(0,255,102,0.3); transition: transform 0.2s;" onclick="this.style.transform='scale(0.95)'">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
           </div>
@@ -954,10 +1009,8 @@ function renderProfilePage() {
         <div class="promo-card" id="prof-card-data" style="text-align: left; width: 100%; max-width: 400px; border-color: rgba(255,255,255,0.2); margin-bottom: 2rem; background: rgba(0,0,0,0.3);">
             <p style="color: #00ffcc; text-transform: uppercase; font-size: 0.8rem; margin:0 0 5px 0;">Trust Level</p>
             <p style="margin: 0; color: white; font-weight: 700; font-size: 1.1rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 1rem; margin-bottom: 1rem;">Zero-Trust Biometric Secure ✓</p>
-            
             <p style="color: #00ffcc; text-transform: uppercase; font-size: 0.8rem; margin:0 0 5px 0;">Identity Status</p>
             <p style="margin: 0; color: white; line-height: 1.4;">Personal information encrypted &amp; stored consistently with Fortress ID protocols.</p>
-            
             <button id="logout-btn" style="margin-top: 2rem; width: 100%; background: rgba(255, 60, 60, 0.1); border: 1px solid #ff3c3c; color: #ff3c3c; padding: 0.6rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.8rem;">
               Log Out / Reset Identity
             </button>
@@ -965,59 +1018,43 @@ function renderProfilePage() {
 
           <button class="btn-primary" id="close-profile" style="width: 100%;">Return to FLUX</button>
      </div>
-
   `;
   document.body.appendChild(d);
-  document.getElementById('close-profile').addEventListener('click', () => {
-    document.getElementById('profile-view').remove();
-  });
+
+  document.getElementById('close-profile').addEventListener('click', closeAll);
   document.getElementById('logout-btn').addEventListener('click', () => {
+    closeAll();
     hibernateEverything();
     localStorage.clear();
     location.reload();
   });
   document.getElementById('prof-popup-edit').addEventListener('click', () => {
-     document.getElementById('profile-view').remove();
-     renderProfileEdit();
+    closeAll();
+    renderProfileEdit();
   });
 }
+
 
 
 
 // ============================================================
 // ENTRY MODULE — GREEN CARPET
 // ============================================================
+// ============================================================
+// ENTRY MODULE — GREEN CARPET
+// ============================================================
 function renderEntryModule() {
   if (!authGuard()) return;
-  const appEl = document.querySelector('#app');
-  appEl.innerHTML = `
-    <div id="entry-container" class="animated">
-      <!-- Entry Header -->
-      <div class="top-nav">
-        <div style="display: flex; align-items: center; gap: 1rem;">
-          <button id="entry-back-btn" class="nav-back-btn" title="Back to Dashboard">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-          </button>
-          <div class="logo-small">ENTRY</div>
-        </div>
-        <div class="avatar" style="cursor: pointer;" onclick="renderProfilePage()">
-           ${getAvatarHTML(parseInt(localStorage.getItem('flux_avatar_idx') || 0), 28)}
-        </div>
-      </div>
 
-      <!-- Scrollable content -->
-      <div id="entry-view" class="main-feed animated">
+  const content = `
+    <div id="entry-container">
+      <div id="entry-view" class="main-feed">
          <!-- Content injected here by sub-renderers -->
       </div>
-      
-      ${getBottomNavHTML()}
     </div>
   `;
 
-  document.getElementById('entry-back-btn').addEventListener('click', renderHomePage);
-  document.getElementById('entry-avatar')?.addEventListener('click', renderProfilePage);
-  bindUniversalNav(); // Link universal navigation
-  setNavActive(0);    // Mark entry as active
+  mountDashboardModule(content, 1, 'ENTRY');
   
   const entryFeed = document.getElementById('entry-view');
 
@@ -1071,22 +1108,11 @@ function renderTimeSlots(container) {
   }).join('');
 
   container.innerHTML = `
-    <div id="app-container" class="animated">
-      <div class="top-nav">
-        <div style="display: flex; align-items: center; gap: 1rem;">
-           <div class="nav-back-btn" id="entry-back-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg></div>
-           <div class="nav-logo">ENTRY</div>
-        </div>
-        <div class="avatar" id="nav-avatar">
-           ${getAvatarHTML(parseInt(localStorage.getItem('flux_avatar_idx') || 0), 28)}
-        </div>
-      </div>
-
-      <div class="main-feed" id="entry-feed" style="padding-top: 120px !important;">
-        <h2 style="color: #00ff66;">Choose Your Window</h2>
+      <div id="entry-feed" style="width: 100%;">
+        <h2 style="color: #00ff66; margin-top: 2rem; margin-bottom: 1.5rem; text-align: center;">Choose Your Window</h2>
         
         <div class="promo-card" id="maps-engine-card" style="border-color: #00ff66; background: rgba(0, 255, 102, 0.05); padding: 2rem; margin-bottom: 2.5rem;">
-            <h3 style="color: #00ff66; margin: 0 0 0.8rem 0; font-size: 1.2rem; text-transform: uppercase;">Live Proximity Protocol</h3>
+            <p style="color: #00ff66; font-weight: 700; margin-bottom: 8px; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.1em;">Live Navigation Mode</p>
             <p style="font-size: 0.9rem; line-height: 1.6; margin-bottom: 1.5rem;">Syncing with <strong style="color:#fff;">Google Maps Platform</strong> for real-time stadium geo-fencing and crowd-flow optimization.</p>
             
             <div id="google-maps-engine" style="width: 100%; height: 160px; background: #080808; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center;">
@@ -1102,11 +1128,8 @@ function renderTimeSlots(container) {
             </div>
         </div>
 
-        <div class="entry-grid">${slotCards}</div>
+        <div class="entry-grid" style="display: grid; grid-template-columns: 1fr; gap: var(--global-gap);">${slotCards}</div>
       </div>
-
-      ${getBottomNavHTML()}
-    </div>
   `;
 
   container.querySelectorAll('.btn-book').forEach(btn => {
@@ -1132,34 +1155,34 @@ function renderTimeSlots(container) {
 
 function renderLockout(container) {
   container.innerHTML = `
-     <div class="lockout-screen animated">
+     <div class="lockout-screen animated" style="width: 100%; text-align: center;">
         <!-- High-Fidelity Heads Up Notice -->
         <div style="width: 100%; background: #ffaa00; color: #000; padding: 0.8rem; border-radius: 12px; margin-bottom: 2rem; text-align: center; font-weight: 700; font-size: 0.85rem; box-shadow: 0 10px 20px rgba(0,0,0,0.3);">
            ⚠️ HEADS UP: Please reach the required proximity range for enabling the QR code otherwise QR won't be enabled.
         </div>
 
-        <p style="color: rgba(255,255,255,0.25); text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.2em; margin-bottom: 0.5rem; text-align: center;">Secure Session Active</p>
-        <h2 style="color: #fff; margin: 0 0 2rem 0; font-size: 1.2rem; font-weight: 300; text-align: center;">PROXIMITY SCAN FOR <span style="color: var(--accent); font-weight: 700;">${(localStorage.getItem('flux_user') || 'GUEST').toUpperCase()}</span></h2>
+        <p style="color: rgba(255,255,255,0.25); text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.2em; margin-bottom: 0.5rem;">Secure Session Active</p>
+        <h2 style="color: #fff; margin: 0 0 2rem 0; font-size: 1.2rem; font-weight: 300;">PROXIMITY SCAN FOR <span style="color: var(--accent); font-weight: 700;">${(localStorage.getItem('flux_user') || 'GUEST').toUpperCase()}</span></h2>
 
         <h2 style="color: #00e5ff; text-transform: uppercase; margin: 0 0 0.5rem 0; font-size: 1.5rem; letter-spacing: 0.08em;">Transit Mode</h2>
 
         <p style="color: var(--text-muted); font-size: 0.88rem; margin: 0 0 1.5rem 0;">Sleeping Key mapped to: <b style="color: #fff;">${mockEntryState.bookedSlot}</b>. Stand by for unlock.</p>
         
-        <div class="qr-payload-container">
-           <div class="secure-qr-box" style="background: rgba(10,10,20,0.6);">
+        <div class="qr-payload-container" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
+           <div class="secure-qr-box" style="background: rgba(10,10,20,0.6); position: relative;">
               <div class="scanline"></div>
               <p style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.15); font-size:0.7rem; font-family:var(--font-heading); text-transform:uppercase; letter-spacing:0.15em;">Locked</p>
            </div>
-           <h1 class="countdown-timer" id="entry-timer">00:15</h1>
+           <h1 class="countdown-timer" id="entry-timer" style="margin-top: 1rem;">00:15</h1>
            <p style="color: var(--text-muted); font-size: 0.75rem; margin-top: 0.4rem;">Fast Lane unlocks at zero</p>
         </div>
 
-        <div class="promo-card info-banner" style="border-color: #ffaa00; background: rgba(50, 30, 0, 0.4); padding: 1rem; margin-top: 1.5rem;">
+        <div class="promo-card info-banner" style="border-color: #ffaa00; background: rgba(50, 30, 0, 0.4); padding: 1rem; margin-top: 1.5rem; text-align: left;">
            <p style="color: #ffaa00; font-weight: 700; margin: 0 0 6px 0; text-transform: uppercase; font-size: 0.78rem;">ℹ️ Heads Up</p>
            <p style="color: rgba(255,255,255,0.85); font-size: 0.82rem; margin: 0; line-height: 1.6;">Your code encrypts and refreshes every 3 seconds once unlocked. Show it live at the gate — screenshots won't capture the active payload.</p>
         </div>
 
-        <div class="promo-card" style="border-color: rgba(255,255,255,0.08); background: rgba(10,10,20,0.5); padding: 1rem; margin-top: 1rem;">
+        <div class="promo-card" style="border-color: rgba(255,255,255,0.08); background: rgba(10,10,20,0.5); padding: 1rem; margin-top: 1rem; text-align: left;">
            <p style="color: rgba(255,180,0,0.8); font-weight: 700; margin: 0 0 6px 0; text-transform: uppercase; font-size: 0.75rem;">⚠️ Miss Your Window?</p>
            <p style="color: rgba(255,255,255,0.65); font-size: 0.8rem; margin: 0; line-height: 1.6;">Your Green Pass turns Grey if you arrive outside your slot. You'll join the standard queue and lose Fast Lane access for this event.</p>
         </div>
@@ -1436,11 +1459,11 @@ function getBottomNavHTML() {
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
         Home
       </div>
-      <div class="nav-item" data-color="#00ffe1" data-index="1" id="nav-entry-btn">
+      <div class="nav-item" data-color="#00ffe5ff" data-index="1" id="nav-entry-btn">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
         Entry
       </div>
-      <div class="nav-item" data-color="#00ffcc" data-index="2" id="nav-break">
+      <div class="nav-item" data-color="#8400ff" data-index="2" id="nav-break">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
         Break
       </div>
@@ -1482,41 +1505,21 @@ function bindUniversalNav() {
     });
   });
 
-  // Entry Back Button
-  document.getElementById('entry-back-btn')?.addEventListener('click', renderHomePage);
-  document.getElementById('market-back-btn')?.addEventListener('click', renderHomePage);
-  document.getElementById('exit-back-btn')?.addEventListener('click', renderHomePage);
-
-  // Logo back-to-dashboard shortcut
-  document.getElementById('header-logo')?.addEventListener('click', renderHomePage);
+  // Dashboard Back Behavior is now handled centrally in mountDashboardModule
 }
+
+
 
 function renderExitModule() {
   if (!authGuard()) return;
-  const container = document.querySelector('#app');
-  container.innerHTML = `
-    <div id="app-container" class="animated">
-      <div class="top-nav">
-        <div style="display: flex; align-items: center; gap: 1rem;">
-           <div class="nav-back-btn" id="exit-back-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg></div>
-           <div class="nav-logo">EXIT</div>
-        </div>
-        <div class="avatar" id="nav-avatar">
-           ${getAvatarHTML(parseInt(localStorage.getItem('flux_avatar_idx') || 0), 28)}
-        </div>
-      </div>
 
-      <div class="main-feed" style="padding-top: 10px; display: flex; align-items: center; justify-content: center; height: 50vh;">
-         <!-- Placeholder for Future Exit Flow -->
-      </div>
-      
-      ${getBottomNavHTML()}
+  const content = `
+    <div id="exit-container">
+      <!-- Exit page content coming soon -->
     </div>
   `;
 
-  document.getElementById('exit-back-btn').addEventListener('click', renderHomePage);
-  bindUniversalNav();
-  setNavActive(2);
+  mountDashboardModule(content, 3, 'EXIT');
 }
 
 /**
