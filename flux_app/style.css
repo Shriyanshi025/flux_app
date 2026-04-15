@@ -576,6 +576,11 @@ input:focus {
   transform: translateY(-8px);
 }
 
+#nav-home:hover { color: var(--accent) !important; }
+#nav-entry-btn:hover { color: #fffca3 !important; }
+#nav-break:hover { color: #8400ff !important; }
+#nav-exit:hover { color: #ff003c !important; }
+
 .nav-item:active {
   transform: scale(0.85) translateY(-5px);
 }

@@ -358,32 +358,25 @@ function hibernateEverything() {
   marketInterval = null;
 }
 
-function mountDashboardModule(moduleHtml, activeIndex = 0, pageTitle = null) {
+function mountDashboardModule(moduleHtml, activeIndex = 0, pageTitle = '', backAction = renderHomePage) {
   const appEl = document.querySelector('#app');
   if (!appEl) return;
 
-  // 1. Determine Header Type
-  const isHome = activeIndex === 0 && !pageTitle;
-  
-  const headerHtml = isHome ? `
+  // 1. Build Header
+  const isHome = activeIndex === 0;
+  const headerHtml = `
     <div class="top-nav">
       <div style="display: flex; align-items: center; gap: 1rem;">
-        <div class="icon" id="nav-menu-btn">
-           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-        </div>
-        <div class="nav-logo" id="header-logo" style="cursor: pointer;">FLUX</div>
-      </div>
-      <div class="avatar" style="cursor: pointer;" id="nav-avatar">
-         ${getAvatarHTML(parseInt(localStorage.getItem('flux_avatar_idx') || 0), 28)}
-      </div>
-    </div>
-  ` : `
-    <div class="top-nav">
-      <div style="display: flex; align-items: center; gap: 1rem;">
-        <button id="nav-back-btn" class="nav-back-btn" title="Back to Dashboard">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-        </button>
-        <div class="logo-small">${pageTitle || 'DASHBOARD'}</div>
+        ${isHome ? `
+          <button id="nav-menu-btn" class="nav-back-btn" title="Menu">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+          </button>
+        ` : `
+          <button id="nav-back-btn" class="nav-back-btn" title="Back">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          </button>
+        `}
+        <div class="logo-small" id="top-logo" style="cursor: pointer;">${isHome ? 'FLUX' : (pageTitle || 'DASHBOARD')}</div>
       </div>
       <div class="avatar" style="cursor: pointer;" id="nav-avatar">
          ${getAvatarHTML(parseInt(localStorage.getItem('flux_avatar_idx') || 0), 28)}
@@ -392,7 +385,6 @@ function mountDashboardModule(moduleHtml, activeIndex = 0, pageTitle = null) {
   `;
 
   // 2. Build Shell
-  // Viewport handles padding internally via CSS for perfect stability
   appEl.innerHTML = `
     <div id="shell-container">
       <div id="shell-header">${headerHtml}</div>
@@ -410,14 +402,17 @@ function mountDashboardModule(moduleHtml, activeIndex = 0, pageTitle = null) {
   setNavActive(activeIndex);
 
   // 4. Bind specific UI triggers
+  document.getElementById('nav-back-btn')?.addEventListener('click', backAction);
   document.getElementById('nav-menu-btn')?.addEventListener('click', () => {
-    renderSideNav();   // creates nav elements on first call (guarded internally)
-    toggleSideNav(true);
+    renderSideNav();
+    const nav = document.getElementById('side-nav');
+    const isShowing = nav?.classList.contains('show');
+    toggleSideNav(!isShowing);
   });
-  document.getElementById('nav-back-btn')?.addEventListener('click', renderHomePage);
-  document.getElementById('header-logo')?.addEventListener('click', renderHomePage);
   
-  // Update Profile clicks (since we have new DOM elements)
+  document.getElementById('top-logo')?.addEventListener('click', renderHomePage);
+  
+  // Update Profile clicks
   document.querySelectorAll('#nav-avatar').forEach(el => {
     el.addEventListener('click', renderProfilePage);
   });
@@ -487,9 +482,9 @@ function renderHomeHTML() {
         </div>
 
         <div class="promo-card card-departure">
-          <h3>Departure: Soft Exit</h3>
+          <h3>Departure: Relaxed Stay</h3>
           <p>Avoid post-game congestion. Stay in your seat, unlock exclusive interviews, or redeem a 20% ride discount!</p>
-          <button class="btn-primary" id="open-exit-btn">Access Soft-Exit Perks</button>
+          <button class="btn-primary" id="open-exit-btn">View Relaxed Stay Perks</button>
         </div>
       </div>
     </div>
@@ -760,11 +755,11 @@ function renderSideNav() {
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
       Profile
     </div>
-    <div class="nav-panel-item">
+    <div class="nav-panel-item" id="nav-about">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
       About
     </div>
-    <div class="nav-panel-item">
+    <div class="nav-panel-item" id="nav-help">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
       Help
     </div>
@@ -787,6 +782,16 @@ function renderSideNav() {
   document.getElementById('nav-prof').addEventListener('click', () => {
     toggleSideNav(false);
     renderProfilePage();
+  });
+
+  document.getElementById('nav-about').addEventListener('click', () => {
+    toggleSideNav(false);
+    renderAboutPage();
+  });
+
+  document.getElementById('nav-help').addEventListener('click', () => {
+    toggleSideNav(false);
+    renderHelpPage();
   });
 }
 
@@ -1034,6 +1039,153 @@ function renderProfilePage() {
   document.getElementById('prof-popup-edit').addEventListener('click', () => {
     closeAll();
     renderProfileEdit();
+  });
+}
+
+
+/**
+ * ABOUT PAGE: Smart Congestion Orchestration
+ */
+function renderAboutPage() {
+  if (!authGuard()) return;
+
+  const content = `
+    <div class="main-feed" style="gap: 1.5rem; padding-top: 10px;">
+      <div class="promo-card" style="border-color: var(--accent); background: rgba(57, 255, 20, 0.05);">
+        <h2 style="font-family: var(--font-logo); font-size: 1.8rem; margin-bottom: 1rem; color: var(--accent);">SMART CONGESTION ORCHESTRATION</h2>
+        <p style="color: #fff; line-height: 1.6; font-size: 1rem;">
+          FLUX is not just a dashboard; it is the central nervous system for crowd dynamics. 
+          By combining real-time mass-flow analytics with economic incentives, we orchestrate 
+          the movement of thousands to eliminate friction before it begins.
+        </p>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr; gap: 1rem;">
+        <div class="promo-card">
+          <h3 style="color: var(--accent); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5rem;">The Flow Engine</h3>
+          <p style="color: var(--text-muted); font-size: 0.85rem; line-height: 1.5;">
+            Our proprietary algorithms predict mass congestion at gates and concourses 15 minutes before they peak, 
+            dynamically shifting loads to under-utilized infrastructure.
+          </p>
+        </div>
+        
+        <div class="promo-card">
+          <h3 style="color: var(--accent); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5rem;">Incentive Arbitrage</h3>
+          <p style="color: var(--text-muted); font-size: 0.85rem; line-height: 1.5;">
+            We use surge-based discounting to "bribe" crowd segments away from high-density zones, 
+            turning stadium bottlenecks into optimal throughput opportunities.
+          </p>
+        </div>
+
+        <div class="promo-card">
+          <h3 style="color: var(--accent); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5rem;">Zero-Trust Transit</h3>
+          <p style="color: var(--text-muted); font-size: 0.85rem; line-height: 1.5;">
+            Every move is secured by the Fortress Protocol. Your identity is your key, 
+            authenticated via biometric pulse-points at every gate, lounge, and exit.
+          </p>
+        </div>
+      </div>
+
+      <div style="text-align: center; margin-top: 2rem; opacity: 0.5; font-size: 0.7rem; letter-spacing: 0.2em;">
+        BUILD v1.0.4 • THE FORTRESS PROTOCOL
+      </div>
+    </div>
+  `;
+
+  mountDashboardModule(content, 0, 'FLUX');
+}
+
+
+/**
+ * HELP PAGE: Comprehensive FAQs & Contact
+ */
+function renderHelpPage() {
+  if (!authGuard()) return;
+
+  const faqs = [
+    { q: "What is an Arbitrage Deal?", a: "When a specific vendor or gate is over-capacity, we lower prices at nearby empty locations to shift the crowd. These are live, one-time deals based on real-time heatmap data." },
+    { q: "How do Arrival Slots work?", a: "To ensure a smooth Green Carpet experience, you book a 10-minute entry window. Arriving on-time unlocks Fast Lane access and priority security screening." },
+    { q: "How is my Flow Tier calculated?", a: "Based on your transport profile (Walking, Public Transit, or Rideshare), we assign you to Sprinter (Urgent), Stroller (Flexible), or Anchor (Relaxed) departure groups." },
+    { q: "Is my biometric data safe?", a: "All Fortress ID biometric data is encrypted on-device. FLUX never stores raw fingerprints or facial scans on central servers, adhering to Zero-Trust infrastructure." },
+    { q: "What does the Heatmap represent?", a: "The Market Heatmap shows real-time congestion levels across all stadium sectors. Red zones are at peak load; green zones are empty and offer the best Arbitrage discounts." },
+    { q: "How do I switch exclusive channels?", a: "In the Exclusive Content module, use the channel switcher at the top to toggle between Locker Room Interviews and the Main Stage performance feeds." }
+  ];
+
+  const content = `
+    <div class="main-feed" style="gap: 1.5rem; padding-top: 10px;">
+      
+      <!-- FAQ Section -->
+      <section>
+        <h2 style="font-family: var(--font-logo); font-size: 1.2rem; margin-bottom: 1.2rem; color: var(--accent); text-transform: uppercase; letter-spacing: 0.1em;">Protocol Intelligence (FAQs)</h2>
+        <div style="display: flex; flex-direction: column; gap: 0.8rem;">
+          ${faqs.map((faq, i) => `
+            <div class="promo-card" style="padding: 1rem; cursor: pointer;" onclick="const a = document.getElementById('faq-a-${i}'); a.style.display = a.style.display === 'none' ? 'block' : 'none';">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h4 style="margin: 0; color: #fff; font-size: 0.95rem;">${faq.q}</h4>
+                <span style="color: var(--accent); font-size: 1.2rem;">+</span>
+              </div>
+              <p id="faq-a-${i}" style="display: none; margin-top: 0.8rem; color: var(--text-muted); font-size: 0.85rem; line-height: 1.5; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.8rem;">
+                ${faq.a}
+              </p>
+            </div>
+          `).join('')}
+        </div>
+      </section>
+
+      <!-- Contact Us Form -->
+      <section style="margin-top: 1rem;">
+        <h2 style="font-family: var(--font-logo); font-size: 1.2rem; margin-bottom: 1.2rem; color: var(--accent); text-transform: uppercase; letter-spacing: 0.1em;">Transmit Support Request</h2>
+        <div class="promo-card" id="contact-form-container">
+          <div class="form-group" style="margin-bottom: 1.2rem;">
+            <label style="color: var(--accent); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em;">Transmission Subject</label>
+            <input type="text" id="help-subject" placeholder="e.g. Identity Access Issue" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); color: #fff; width: 100%; padding: 0.8rem; border-radius: 8px; margin-top: 4px; outline: none;" />
+          </div>
+          <div class="form-group" style="margin-bottom: 1.5rem;">
+            <label style="color: var(--accent); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em;">Signal Message</label>
+            <textarea id="help-message" placeholder="Type your message..." style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); color: #fff; width: 100%; padding: 0.8rem; border-radius: 8px; margin-top: 4px; outline: none; min-height: 100px; resize: none;"></textarea>
+          </div>
+          <button class="btn-primary" id="help-transmit-btn" style="width: 100%; background: var(--accent); color: #000; font-weight: 800;">
+            TRANSMIT FREQUENCY
+          </button>
+        </div>
+      </section>
+
+      <div style="height: 40px;"></div>
+    </div>
+  `;
+
+  mountDashboardModule(content, 0, 'FLUX');
+
+  // Bind Contact Form
+  document.getElementById('help-transmit-btn')?.addEventListener('click', () => {
+    const sub = document.getElementById('help-subject').value;
+    const msg = document.getElementById('help-message').value;
+
+    if (!sub || !msg) {
+      alert("Transmission incomplete. Subject and Message required.");
+      return;
+    }
+
+    const btn = document.getElementById('help-transmit-btn');
+    btn.innerHTML = "WAVELENGTH ENCRYPTED ✓";
+    btn.style.background = "#fff";
+    btn.disabled = true;
+
+    if (navigator.vibrate) navigator.vibrate([20, 40, 20]);
+
+    setTimeout(() => {
+      const container = document.getElementById('contact-form-container');
+      if (container) {
+          container.innerHTML = `
+            <div style="text-align: center; padding: 2rem;">
+              <div style="font-size: 3rem; margin-bottom: 1rem;">📡</div>
+              <h3 style="color: #fff; margin-bottom: 0.5rem;">Signal Transmitted</h3>
+              <p style="color: var(--text-muted); font-size: 0.85rem;">Orbiting relay has received your frequency. Response expected in 14ms.</p>
+              <button class="btn-primary" style="margin-top: 1.5rem; background: rgba(255,255,255,0.05); color: #fff; border: 1px solid rgba(255,255,255,0.1);" onclick="renderHomePage()">Return to Dashboard</button>
+            </div>
+          `;
+      }
+    }, 1500);
   });
 }
 
@@ -1462,7 +1614,7 @@ function getBottomNavHTML() {
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
         Home
       </div>
-      <div class="nav-item" data-color="#00ffe5ff" data-index="1" id="nav-entry-btn">
+      <div class="nav-item" data-color="#fffca3" data-index="1" id="nav-entry-btn">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
         Entry
       </div>
@@ -1520,21 +1672,21 @@ let exitCountdown = 20 * 60; // 20 minutes in seconds
 let exitPhase = 1; // 1=Context Check, 2=Tiered Sort, 3=Release
 
 const exitTierData = {
-  sprinter: { count: 1240, label: 'Sprinters', desc: 'Critical — Train / Flight', color: '#ff003c', icon: '🚆', action: 'FAST TRACK ACTIVE', pct: 22 },
-  stroller:  { count: 2870, label: 'Strollers',  desc: 'Flexible — Rideshare',     color: '#ffaa00', icon: '🚗', action: 'SURGE ALERT SENT',  pct: 51 },
-  anchor:    { count: 1630, label: 'Anchors',    desc: 'Relaxed — Local / Walk',   color: '#8400ff', icon: '🎬', action: 'SOFT EXIT LOCKED',  pct: 27 },
+  sprinter: { count: 1240, label: 'Priority Departure', desc: 'Urgent — Train / Flight', color: '#ff003c', icon: '🚆', action: 'FAST TRACK ACTIVE', pct: 22 },
+  stroller:  { count: 2870, label: 'Flexible Departure',  desc: 'Standard — Rideshare',     color: '#ffaa00', icon: '🚗', action: 'SURGE ALERT SENT',  pct: 51 },
+  anchor:    { count: 1630, label: 'Relaxed Departure',   desc: 'Stay & Save — Local',      color: '#8400ff', icon: '🎬', action: 'SOFT EXIT LOCKED',  pct: 27 },
 };
 
 function getExitPhaseLabel(p) {
-  return ['', 'CONTEXT CHECK', 'TIERED SORT', 'WAVE RELEASE'][p];
+  return ['', 'PRE-CHECK', 'SORTING', 'RELEASE ACTIVE'][p];
 }
 
 function getExitPhaseDesc(p) {
   return [
     '',
     'Analyzing attendee transport profiles…',
-    'Assigning Flow Tiers: Sprinters → Strollers → Anchors',
-    'Wave 1 released. Wave 2 in 15 min. Wave 3 in 30 min.'
+    'Assigning Tiers: Priority → Flexible → Relaxed',
+    'Group 1 released. Group 2 in 15 min. Group 3 in 30 min.'
   ][p];
 }
 
@@ -1566,7 +1718,7 @@ function renderExitModule() {
         </div>
         <div style="flex:1; font-size:0.75rem; color:var(--text-muted); font-family:var(--font-logo);" id="exit-phase-desc">${getExitPhaseDesc(exitPhase)}</div>
         <div style="font-family:var(--font-logo); font-size:1rem; color:#ff003c; letter-spacing:0.1em; font-weight:700;">
-          T‑MINUS <span id="exit-countdown">${fmtCountdown(exitCountdown)}</span>
+          NEXT RELEASE IN <span id="exit-countdown">${fmtCountdown(exitCountdown)}</span>
         </div>
       </div>
 
@@ -1635,12 +1787,12 @@ function renderExitModule() {
         <!-- The 3 Tier Strategy Cards -->
         <p style="color:var(--text-muted); font-size:0.65rem; text-transform:uppercase; letter-spacing:0.12em; margin:0; padding:0 0 0.2rem 0;">Flow Tier Breakdown</p>
 
-        <!-- Tier 1: Sprinters -->
+        <!-- Tier 1: Priority Departure -->
         <div class="stand-card" style="border-color:#ff003c40; padding:1rem 1.2rem;">
           <div class="stand-header">
             <div class="stand-info">
-              <div class="type" style="color:#ff003c;">🚆 Tier 1 · Critical</div>
-              <h3 style="margin-top:4px;">The Sprinters</h3>
+              <div class="type" style="color:#ff003c;">🚆 Tier 1 · Urgent</div>
+              <h3 style="margin-top:4px;">Priority Departure</h3>
             </div>
             <div class="stand-price" style="background:#ff003c15; padding:6px 12px; border-radius:8px; border:1px solid #ff003c40;">
               <span class="price-val" style="color:#ff003c; font-size:1rem;">GREEN</span>
@@ -1655,12 +1807,12 @@ function renderExitModule() {
           </div>
         </div>
 
-        <!-- Tier 2: Strollers -->
+        <!-- Tier 2: Flexible Departure -->
         <div class="stand-card" style="border-color:#ffaa0040; padding:1rem 1.2rem;">
           <div class="stand-header">
             <div class="stand-info">
-              <div class="type" style="color:#ffaa00;">🚗 Tier 2 · Flexible</div>
-              <h3 style="margin-top:4px;">The Strollers</h3>
+              <div class="type" style="color:#ffaa00;">🚗 Tier 2 · Standard</div>
+              <h3 style="margin-top:4px;">Flexible Departure</h3>
             </div>
             <div class="stand-price" style="background:#ffaa0015; padding:6px 12px; border-radius:8px; border:1px solid #ffaa0040;">
               <span class="price-val" style="color:#ffaa00; font-size:1rem;" id="surge-now">$50</span>
@@ -1688,12 +1840,12 @@ function renderExitModule() {
           </div>
         </div>
 
-        <!-- Tier 3: Anchors -->
+        <!-- Tier 3: Relaxed Departure -->
         <div class="stand-card" style="border-color:#8400ff40; padding:1rem 1.2rem;">
           <div class="stand-header">
             <div class="stand-info">
-              <div class="type" style="color:#8400ff;">🎬 Tier 3 · Relaxed</div>
-              <h3 style="margin-top:4px;">The Anchors</h3>
+              <div class="type" style="color:#8400ff;">🎬 Tier 3 · Stay & Save</div>
+              <h3 style="margin-top:4px;">Relaxed Departure</h3>
             </div>
             <div class="stand-price" style="background:#8400ff15; padding:6px 12px; border-radius:8px; border:1px solid #8400ff40;">
               <span class="price-val" style="color:#8400ff; font-size:1rem;">LOCKED</span>
@@ -1701,11 +1853,11 @@ function renderExitModule() {
             </div>
           </div>
           <p style="color:var(--text-muted); font-size:0.8rem; line-height:1.5; margin:0;">Local and flexible attendees receive the <strong style="color:#8400ff;">Soft Exit</strong>. Their exit pass is locked for 15 minutes in exchange for exclusive locker room interview content streaming live on the screen.</p>
-          <div style="background:rgba(132,0,255,0.06); border:1px solid #8400ff30; border-radius:10px; padding:0.8rem; display:flex; align-items:center; gap:0.8rem;">
+          <div id="locker-access-trigger" style="background:rgba(132,0,255,0.06); border:1px solid #8400ff30; border-radius:10px; padding:0.8rem; display:flex; align-items:center; gap:0.8rem; cursor:pointer;">
             <span style="font-size:1.5rem;">🎙️</span>
             <div>
               <p style="color:#8400ff; font-size:0.75rem; font-weight:700; margin:0;">LIVE: Locker Room Access</p>
-              <p style="color:var(--text-muted); font-size:0.7rem; margin:3px 0 0 0;">Captain's post-match interview · Exclusive to Anchor attendees</p>
+              <p style="color:var(--text-muted); font-size:0.7rem; margin:3px 0 0 0;">Captain's post-match interview · Exclusive to Relaxed attendees</p>
             </div>
             <div style="margin-left:auto; background:#8400ff; color:#fff; font-size:0.65rem; padding:4px 10px; border-radius:20px; font-weight:700;" id="anchor-timer">15:00</div>
           </div>
@@ -1716,10 +1868,10 @@ function renderExitModule() {
           <p style="color:var(--text-muted); font-size:0.65rem; text-transform:uppercase; letter-spacing:0.12em; margin:0 0 1rem 0;">The 4 Strategic Pillars</p>
           <div style="display:flex; flex-direction:column; gap:0.8rem;">
             ${[
-              { icon:'✈️', title:'Priority Queuing',     body:'Like boarding a plane — attendees with tight connections exit first. Feels fair because it is based on genuine need.' },
-              { icon:'🎬', title:'Soft Exit Retention',  body:'Keep 30% in seats for just 15 minutes with exclusive content. Gate congestion drops by nearly half.' },
-              { icon:'💰', title:'Price Signalling',     body:'Showing the live surge cost of leaving now convinces rideshare attendees to wait — naturally, without force.' },
-              { icon:'🛡️', title:'Safety through Speed', body:'Removing panicked travelers from the general crowd first lowers overall stress levels at every gate.' },
+              { icon:'✈️', title:'Priority Queuing',     body:'Attendees with urgent connections (trains/flights) leave first. This reduces the immediate crush at the gates.' },
+              { icon:'🎬', title:'Relaxed Stay Rewards',  body:'Attendees who stay just 15 minutes longer get exclusive video content, avoiding the peak exit rush.' },
+              { icon:'💰', title:'Live Savings Alerts',  body:'Showing real-time ride costs helps attendees choose to wait for lower prices, naturally thinning the crowd.' },
+              { icon:'🛡️', title:'Safety & Speed',       body:'By spreading out the departure times, we ensure a safer, faster, and less stressful exit for everyone.' },
             ].map(p => `
               <div style="display:flex; gap:0.8rem; align-items:flex-start; border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:0.8rem;">
                 <span style="font-size:1.3rem; flex-shrink:0;">${p.icon}</span>
@@ -1739,6 +1891,20 @@ function renderExitModule() {
   mountDashboardModule(content, 3, 'EXIT');
 
   document.getElementById('nav-back-btn')?.addEventListener('click', renderHomePage);
+
+  // Bind Tier Action Button
+  const actionBtn = document.getElementById('exit-action-btn');
+  if (actionBtn) {
+    actionBtn.addEventListener('click', () => {
+      const t = getUserTier();
+      if (t === exitTierData.sprinter) renderPriorityRoute();
+      else if (t === exitTierData.stroller) renderSurgeTimeline();
+      else renderExclusiveContent();
+    });
+  }
+
+  // Bind Specific Locker Room Trigger
+  document.getElementById('locker-access-trigger')?.addEventListener('click', renderExclusiveContent);
 
   // ── Simulation loop ────────────────────────────────────────────
   if (exitInterval) clearInterval(exitInterval);
@@ -1785,6 +1951,241 @@ function renderExitModule() {
     }
   }, 1000);
 }
+
+
+/**
+ * EXIT SUB-PAGES (CHILD MODULES)
+ */
+
+function renderExitSubPage(subTitle, subContent) {
+  const layout = `
+    <div id="exit-container" style="width:100%;">
+      <!-- Status bar inherits from parent -->
+      <div class="market-ticker" style="padding:0.75rem 1rem; display:flex; align-items:center; gap:1.5rem; flex-wrap:wrap; background:rgba(255,255,255,0.03);">
+        <div style="display:flex; align-items:center; gap:0.5rem;">
+          <span style="font-size:0.65rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.08em;">Phase</span>
+          <span style="background:#ff003c; color:#fff; font-size:0.7rem; font-family:var(--font-logo); padding:2px 10px; border-radius:20px; font-weight:700;">${getExitPhaseLabel(exitPhase)}</span>
+        </div>
+        <div style="flex:1; font-size:0.75rem; color:var(--text-muted); font-family:var(--font-logo);">${getExitPhaseDesc(exitPhase)}</div>
+        <div style="font-family:var(--font-logo); font-size:1rem; color:#ff003c; letter-spacing:0.1em; font-weight:700;">
+          NEXT RELEASE IN <span id="sub-countdown">${fmtCountdown(exitCountdown)}</span>
+        </div>
+      </div>
+
+      <div class="main-feed" id="exit-sub-feed" style="gap:1.5rem; padding-top:1.5rem;">
+        ${subContent}
+      </div>
+    </div>
+  `;
+
+  // Mount with backAction returning to root Exit module
+  mountDashboardModule(layout, 3, `EXIT / ${subTitle.toUpperCase()}`, renderExitModule);
+  
+  // Sync the sub-countdown
+  const subCd = setInterval(() => {
+    const el = document.getElementById('sub-countdown');
+    if (!el) { clearInterval(subCd); return; }
+    el.textContent = fmtCountdown(exitCountdown);
+  }, 1000);
+}
+
+function renderPriorityRoute() {
+  const content = `
+    <div class="promo-card" style="border-color:#00ff66; background:rgba(0,255,102,0.05); padding:0; overflow:hidden; min-height:400px; display:flex; flex-direction:column;">
+      <div id="ar-viewport" style="flex:1; background:#080808; position:relative; overflow:hidden;">
+        <!-- Kinetic Radar -->
+        <div class="radar-circle" style="position:absolute; top:50%; left:50%; width:300px; height:300px; border:1px solid rgba(0,255,102,0.2); border-radius:50%; transform:translate(-50%,-50%);"></div>
+        <div class="radar-circle" style="position:absolute; top:50%; left:50%; width:150px; height:150px; border:1px solid rgba(0,255,102,0.1); border-radius:50%; transform:translate(-50%,-50%);"></div>
+        <div class="radar-sweep" style="position:absolute; top:50%; left:50%; width:150px; height:2px; background:linear-gradient(to right, transparent, #00ff66); transform-origin:left center; animation: radar-spin 4s linear infinite;"></div>
+        
+        <!-- Pushing Path -->
+        <svg style="position:absolute; inset:0; width:100%; height:100%;" viewBox="0 0 100 100" preserveAspectRatio="none">
+           <path d="M50,90 Q50,50 80,40" fill="none" stroke="#00ff66" stroke-width="2" stroke-dasharray="5,5" class="path-march"></path>
+           <circle cx="80" cy="40" r="4" fill="#00ff66" class="pulse-point"></circle>
+        </svg>
+
+        <div style="position:absolute; top:20px; left:20px; background:rgba(0,0,0,0.8); padding:8px 15px; border-radius:30px; border:1px solid #00ff66; display:flex; align-items:center; gap:8px;">
+          <div style="width:8px; height:8px; background:#00ff66; border-radius:50%; animation: pulse 1s infinite;"></div>
+          <span style="color:#00ff66; font-size:0.7rem; font-weight:700; letter-spacing:0.1em;">LIVE AR ROUTE ACTIVE</span>
+        </div>
+
+        <div style="position:absolute; bottom:20px; right:20px; text-align:right;">
+          <p style="color:var(--text-muted); font-size:0.6rem; text-transform:uppercase; margin:0;">Target</p>
+          <p style="color:#fff; font-size:1.1rem; font-weight:800; margin:2px 0 0 0;">GATE C-EXPRESS</p>
+        </div>
+      </div>
+
+      <div style="padding:1.5rem; background:rgba(0,0,0,0.5); border-top:1px solid rgba(0,255,102,0.2);">
+        <p style="color:#fff; font-size:0.9rem; margin:0 0 10px 0; font-weight:600;">Follow the green path to bypass the main concourse.</p>
+        <p style="color:var(--text-muted); font-size:0.75rem; margin:0; line-height:1.4;">Your ticket is pre-cleared for the Priority Lane. Show this view to stewards if guided otherwise.</p>
+      </div>
+    </div>
+
+    <style>
+      @keyframes radar-spin { from { transform: translate(0, -50%) rotate(0deg); } to { transform: translate(0, -50%) rotate(360deg); } }
+      .path-march { stroke-dashoffset: 100; animation: dash 5s linear infinite; }
+      @keyframes dash { to { stroke-dashoffset: 0; } }
+      .pulse-point { animation: pulse-glow 2s infinite; }
+      @keyframes pulse-glow { 0% { r: 4; opacity: 1; } 100% { r: 12; opacity: 0; } }
+    </style>
+  `;
+  renderExitSubPage('Priority Route', content);
+}
+
+function renderSurgeTimeline() {
+  const content = `
+     <div class="promo-card" id="surge-dashboard" style="border-color:#ffaa00; background:rgba(255,170,0,0.05); text-align:left;">
+        <h2 style="color:#ffaa00; font-size:1.3rem; margin:0 0 0.5rem 0;">Live Price Forecast</h2>
+        <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:2rem;">Waiting just 25 minutes can save you up to 60% on your return trip.</p>
+
+        <!-- Price Graph -->
+        <div style="width:100%; height:180px; display:flex; align-items:flex-end; gap:8%; margin-bottom:2rem; padding:0 10px;">
+           ${[
+             { label:'NOW', val:100, price:'$50', color:'#ff003c' },
+             { label:'15M', val:65, price:'$32', color:'#ffaa00' },
+             { label:'30M', val:40, price:'$20', color:'#ffaa00' },
+             { label:'45M', val:30, price:'$15', color:'var(--accent)' }
+           ].map(b => `
+              <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:8px;">
+                 <span style="font-size:0.75rem; color:${b.color}; font-weight:700;">${b.price}</span>
+                 <div style="width:100%; height:${b.val}%; background:${b.color}; border-radius:6px 6px 0 0; opacity:0.8; box-shadow:0 0 15px ${b.color}40;"></div>
+                 <span style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase;">${b.label}</span>
+              </div>
+           `).join('')}
+        </div>
+
+            <div style="background:rgba(255,170,0,0.1); border:1px solid #ffaa0040; border-radius:12px; padding:1.2rem; display:flex; align-items:center; justify-content:space-between;">
+           <div>
+              <p style="color:#ffaa00; font-size:0.75rem; font-weight:700; text-transform:uppercase; margin:0;">Projected Saving</p>
+              <p style="color:#fff; font-size:1.2rem; font-weight:800; margin:4px 0 0 0;">$32.00 Total</p>
+           </div>
+           <button id="surge-alert-btn" style="background:#ffaa00; color:#000; border:none; padding:0.6rem 1.2rem; border-radius:8px; font-weight:800; font-size:0.75rem; cursor:pointer;">Set Drop Alert</button>
+        </div>
+     </div>
+  `;
+  renderExitSubPage('Ride Savings', content);
+  
+  document.getElementById('surge-alert-btn')?.addEventListener('click', (e) => {
+    e.target.innerText = '🔔 Alert Active';
+    e.target.style.background = 'transparent';
+    e.target.style.border = '1px solid #ffaa00';
+    e.target.style.color = '#ffaa00';
+  });
+}
+
+function renderExclusiveContent() {
+  let innerState = {
+    channel: 'interviews', // 'interviews' or 'performance'
+    isPlaying: false
+  };
+
+  const getSubHTML = () => {
+    const isInterviews = innerState.channel === 'interviews';
+    const playIcon = innerState.isPlaying 
+      ? '<svg width="24" height="24" viewBox="0 0 24 24" fill="#fff"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>'
+      : '<svg width="24" height="24" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z"/></svg>';
+
+    return `
+      <!-- Parent box with forced styles to prevent global hover movement -->
+      <div id="exclusive-player-card" class="promo-card" style="border-color:#8400ff; background:rgba(132,0,255,0.05); padding:0; overflow:hidden; transform:none !important; transition:none !important; cursor:default;">
+        
+        <!-- Channel Switcher -->
+        <div style="display:flex; background:rgba(0,0,0,0.4); padding:5px; border-bottom:1px solid rgba(132,0,255,0.2);">
+          <button id="chan-interviews" style="flex:1; background:${isInterviews ? '#8400ff' : 'transparent'}; color:${isInterviews ? '#fff' : '#888'}; border:none; padding:8px; border-radius:6px; font-size:0.65rem; font-weight:800; cursor:pointer; transition:background-color 0.2s, color 0.2s;">CH 01: INTERVIEWS</button>
+          <button id="chan-performance" style="flex:1; background:${!isInterviews ? '#8400ff' : 'transparent'}; color:${!isInterviews ? '#fff' : '#888'}; border:none; padding:8px; border-radius:6px; font-size:0.65rem; font-weight:800; cursor:pointer; transition:background-color 0.2s, color 0.2s;">CH 02: PERFORMANCE</button>
+        </div>
+
+        <div style="width:100%; aspect-ratio:16/9; background:#000; position:relative; display:flex; align-items:center; justify-content:center;">
+           <!-- Fake Video Feed -->
+           <div style="position:absolute; inset:0; opacity:0.6; background:url('${isInterviews ? 'https://images.unsplash.com/photo-1541534741688-6078c64b5cd9?auto=format&fit=crop&q=80&w=800' : 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?auto=format&fit=crop&q=80&w=800'}') center/cover;"></div>
+           <div style="position:absolute; inset:0; background:radial-gradient(circle at center, transparent, rgba(0,0,0,0.8));"></div>
+           
+           <div style="position:relative; z-index:2; text-align:center;">
+              <div id="exclusive-play-btn" style="width:60px; height:60px; border-radius:50%; background:rgba(132,0,255,0.8); display:flex; align-items:center; justify-content:center; border:2px solid #fff; margin-bottom:10px; cursor:pointer;" title="${innerState.isPlaying ? 'Pause' : 'Play'}">
+                 ${playIcon}
+              </div>
+              <p id="player-status-text" style="color:#fff; font-size:0.8rem; font-weight:700; text-shadow:0 2px 10px rgba(0,0,0,0.5);">${innerState.isPlaying ? 'STREAMING LIVE' : 'TAP TO ENTER FEED'}</p>
+           </div>
+
+           <div style="position:absolute; top:15px; left:15px; background:#ff003c; color:#fff; padding:3px 10px; border-radius:4px; font-weight:900; font-size:0.65rem; letter-spacing:0.1em; display:flex; align-items:center; gap:5px;">
+             <div style="width:6px; height:6px; background:#fff; border-radius:50%; ${innerState.isPlaying ? 'animation: pulse 1s infinite;' : ''}"></div>
+             LIVE ACCESS
+           </div>
+
+           <div style="position:absolute; bottom:15px; left:15px; right:15px; display:flex; justify-content:space-between; align-items:center;">
+              <p style="color:#fff; font-size:0.75rem; margin:0; font-weight:700;">FLUX // ${isInterviews ? 'LOCKER ROOM' : 'MAIN STAGE'}</p>
+              <div style="display:flex; gap:3px;">
+                 ${[1.2, 0.8, 2, 1.5, 1.1, 1.8].map(h => `<div style="width:3px; height:${innerState.isPlaying ? h * (isInterviews ? 10 : 20) : 5}px; background:#8400ff; transition: height 0.3s ease; ${innerState.isPlaying ? 'animation: wave-pulse 0.5s ease-in-out infinite alternate;' : ''}"></div>`).join('')}
+              </div>
+           </div>
+        </div>
+
+        <div style="padding:1.5rem; text-align:left;">
+          <h3 style="color:#8400ff; margin:0 0 10px 0;">${isInterviews ? 'Post-Match: Captains Interview' : 'Live: Electronic Performance'}</h3>
+          <p style="color:var(--text-muted); font-size:0.82rem; line-height:1.5; margin:0;">${isInterviews ? 'Enjoy this exclusive behind-the-scenes content while you wait for the final wave release.' : 'Live music and dance performance by guest artists. Stay for the show, avoid the peak exit crush.'}</p>
+          
+          <div style="margin-top:1.5rem; display:flex; gap:1rem; align-items:center;">
+             <div style="flex:1; height:40px; background:rgba(255,255,255,0.05); border-radius:20px; display:flex; align-items:center; padding:0 15px;">
+                <p style="margin:0; font-size:0.75rem; color:#888;" id="chat-mock-status">Attendee chat active...</p>
+             </div>
+             <button id="send-love-btn" style="width:40px; height:40px; border-radius:50%; background:rgba(255,0,60,0.1); border:1px solid #ff003c; color:#ff003c; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:1.2rem;">❤️</button>
+          </div>
+        </div>
+      </div>
+
+      <style>
+        #exclusive-player-card { transform: none !important; transition: none !important; }
+        #exclusive-player-card div, #exclusive-player-card button, #exclusive-player-card p { transition: none !important; transform: none !important; }
+        #chan-interviews:hover, #chan-performance:hover { background-color: rgba(132,0,255,0.4) !important; }
+        #send-love-btn:hover { background-color: rgba(255, 0, 60, 0.2) !important; }
+        @keyframes wave-pulse { from { height: 5px; } to { height: 25px; } }
+      </style>
+    `;
+  };
+
+  const bindUI = () => {
+    // Channel switching
+    document.getElementById('chan-interviews')?.addEventListener('click', () => {
+      innerState.channel = 'interviews';
+      refresh();
+    });
+    document.getElementById('chan-performance')?.addEventListener('click', () => {
+      innerState.channel = 'performance';
+      refresh();
+    });
+
+    // Play/Pause
+    document.getElementById('exclusive-play-btn')?.addEventListener('click', () => {
+      innerState.isPlaying = !innerState.isPlaying;
+      refresh();
+    });
+
+    // Reaction
+    document.getElementById('send-love-btn')?.addEventListener('click', (e) => {
+      const btn = e.currentTarget;
+      btn.style.backgroundColor = 'rgba(255, 0, 60, 0.4)';
+      setTimeout(() => { btn.style.backgroundColor = 'rgba(255,0,60,0.1)'; }, 200);
+      
+      const chat = document.getElementById('chat-mock-status');
+      if (chat) chat.textContent = 'You sent a reaction!';
+      setTimeout(() => { if (chat) chat.textContent = 'Attendee chat active...'; }, 2000);
+    });
+  };
+
+  const refresh = () => {
+     const feed = document.getElementById('exit-sub-feed');
+     if (feed) {
+       feed.innerHTML = getSubHTML();
+       bindUI();
+     }
+  };
+
+  // Initial mount
+  renderExitSubPage('Exclusive Feed', getSubHTML());
+  // Need a small timeout because renderExitSubPage triggers a full mountDashboardModule
+  setTimeout(bindUI, 50);
+}
+
 
 
 /**
