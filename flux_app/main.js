@@ -1042,6 +1042,14 @@ function renderAboutPage() {
 
       <div style="display: grid; grid-template-columns: 1fr; gap: 1rem;">
         <div class="promo-card">
+          <h3 style="color: var(--accent); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5rem;">Live Navigation</h3>
+          <p style="color: var(--text-muted); font-size: 0.85rem; line-height: 1.5;">
+            Integration with Google Maps Cloud Platform enables real-time stadium frequency locking 
+            and precise proximity triggers for secure arrival slot authentication.
+          </p>
+        </div>
+
+        <div class="promo-card">
           <h3 style="color: var(--accent); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5rem;">The Flow Engine</h3>
           <p style="color: var(--text-muted); font-size: 0.85rem; line-height: 1.5;">
             Our proprietary algorithms predict mass congestion at gates and concourses 15 minutes before they peak, 
@@ -1088,7 +1096,8 @@ function renderHelpPage() {
     { q: "How is my Flow Tier calculated?", a: "Based on your transport profile (Walking, Public Transit, or Rideshare), we assign you to Sprinter (Urgent), Stroller (Flexible), or Anchor (Relaxed) departure groups." },
     { q: "Is my biometric data safe?", a: "All Fortress ID biometric data is encrypted on-device. FLUX never stores raw fingerprints or facial scans on central servers, adhering to Zero-Trust infrastructure." },
     { q: "What does the Heatmap represent?", a: "The Market Heatmap shows real-time congestion levels across all stadium sectors. Red zones are at peak load; green zones are empty and offer the best Arbitrage discounts." },
-    { q: "How do I switch exclusive channels?", a: "In the Exclusive Content module, use the channel switcher at the top to toggle between Locker Room Interviews and the Main Stage performance feeds." }
+    { q: "How do I switch exclusive channels?", a: "In the Exclusive Content module, use the channel switcher at the top to toggle between Locker Room Interviews and the Main Stage performance feeds." },
+    { q: "What is 'Stadium Frequency Locking'?", a: "Powered by Google Maps, this feature allows you to calibrate your exact target location. Locking the frequency ensures that the Proximity Protocol can safely activate your arrival QR code only when you are on-site." }
   ];
 
   const content = `
