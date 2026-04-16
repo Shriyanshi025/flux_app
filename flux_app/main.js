@@ -1,5 +1,10 @@
 import './style.css'
 
+let p5Instance = null;
+let bgShouldBeWaking = false;
+let p5RetryCount = 0;
+const MAX_P5_RETRIES = 50;
+
 const STADIUMS = [
   { name: 'Sector 4 Arena (New York)', lat: 40.7128, lng: -74.0060 },
   { name: 'O2 London', lat: 51.5074, lng: -0.1278 },
@@ -197,7 +202,8 @@ function authGuard() {
 // LOGIN / REGISTER SCREEN
 // ============================================================
 function renderAuthPage() {
-  hibernateEverything(); // Ensure P5 is OFF
+  document.body.className = 'theme-auth';
+  hibernateEverything(); 
   document.querySelector('#app').innerHTML = `
     <div id="app-container">
       <h1 class="logo">FLUX</h1>
@@ -353,6 +359,7 @@ function checkExistingUser() {
 }
 
 function hibernateEverything() {
+  bgShouldBeWaking = false;
   p5Instance?.hibernate();
   if (marketInterval) clearInterval(marketInterval);
   marketInterval = null;
@@ -410,7 +417,10 @@ function mountDashboardModule(moduleHtml, activeIndex = 0, pageTitle = '', backA
     toggleSideNav(!isShowing);
   });
   
-  document.getElementById('top-logo')?.addEventListener('click', renderHomePage);
+  document.getElementById('top-logo')?.addEventListener('click', () => {
+    dismissAllOverlays();
+    renderHomePage();
+  });
   
   // Update Profile clicks
   document.querySelectorAll('#nav-avatar').forEach(el => {
@@ -421,12 +431,14 @@ function mountDashboardModule(moduleHtml, activeIndex = 0, pageTitle = '', backA
 function renderHomePage() {
   if (!authGuard()) return;
 
+  document.body.className = 'theme-dashboard';
   const hasPlayedDrone = sessionStorage.getItem('flux_drone_played');
   const appEl = document.querySelector('#app');
 
   if (hasPlayedDrone) {
     document.body.classList.add('theme-blue');
     document.body.classList.remove('theme-magenta');
+    bgShouldBeWaking = true;
     p5Instance?.wake(); 
     
     // Mount Home Content via Shell
@@ -452,6 +464,7 @@ function renderHomePage() {
       const drone = document.getElementById('intro-drone');
       if (drone) drone.remove();
       sessionStorage.setItem('flux_drone_played', 'true');
+      bgShouldBeWaking = true;
       p5Instance?.wake(); 
       renderHomeHTML();
     }, 3000);
@@ -485,6 +498,12 @@ function renderHomeHTML() {
           <h3>Departure: Relaxed Stay</h3>
           <p>Avoid post-game congestion. Stay in your seat, unlock exclusive interviews, or redeem a 20% ride discount!</p>
           <button class="btn-primary" id="open-exit-btn">View Relaxed Stay Perks</button>
+        </div>
+
+        <!-- Copyright Footer -->
+        <div class="copyright-footer">
+          <p>&copy; 2026 Shriyanshi Sinha. All Rights Reserved.</p>
+          <p class="footer-tagline">Engineered via Fortress Protocol</p>
         </div>
       </div>
     </div>
@@ -796,16 +815,17 @@ function renderSideNav() {
 }
 
 /** 
- * PROFILE EDITING - ATOMIC & CONSISTENT
+ * PROFILE EDITING
  */
 function renderProfileEdit() {
+  if (!authGuard()) return;
+
   const currentName = localStorage.getItem('flux_user') || 'GUEST';
   const currentMob = localStorage.getItem('flux_mob') || '+91 ···· ····';
   const currentEmail = localStorage.getItem('flux_email') || 'alex@fortress.io';
   const currentAvatarIdx = parseInt(localStorage.getItem('flux_avatar_idx') || 0);
   const bioEnabled = localStorage.getItem('flux_bio') !== 'false';
 
-  // Draft Data - changes stay here until Confirm
   const draft = {
     user: currentName,
     mob: currentMob,
@@ -814,62 +834,81 @@ function renderProfileEdit() {
     avatar: currentAvatarIdx
   };
 
-
-  const d = document.createElement('div');
-  d.id = 'edit-profile-view';
-  d.className = 'profile-overlay animated';
-  d.style = "position:fixed; top:0; left:0; right:0; bottom:0; background:var(--bg-core); z-index:4999; overflow-y:auto; overflow-x:hidden; scrollbar-width:none;";
-
-  d.innerHTML = `
-    <div style="min-height:100%; width:100%; display:flex; flex-direction:column; align-items:center; padding: 120px var(--screen-pad-x) 140px; box-sizing:border-box;">
-    <!-- Top: Centered Avatar & Name -->
-    <div style="text-align: center; margin-bottom: 1.5rem;">
-      <div style="position: relative; width: fit-content; margin: 0 auto 1rem auto;">
-        <div id="edit-avatar-container" class="avatar" style="width: 80px; height: 80px; background: ${getAvatarTheme(draft.avatar).bg}; border-width: 3px;">
-           ${getAvatarHTML(draft.avatar, 40)}
+  const content = `
+    <div class="main-feed" style="gap:1.5rem; padding-top:10px;">
+      <div style="text-align: center; margin-bottom: 2rem;">
+        <div style="position: relative; width: fit-content; margin: 0 auto 1.5rem auto;">
+          <div id="edit-avatar-container" class="avatar" style="width: 80px; height: 80px; background: ${getAvatarTheme(draft.avatar).bg}; border-width: 3px;">
+             ${getAvatarHTML(draft.avatar, 40)}
+          </div>
+          <div id="change-avatar-btn" style="position: absolute; bottom: 0; right: 0; background: var(--accent); width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2.5px solid var(--bg-core); cursor: pointer;">
+             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3.5"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+          </div>
         </div>
-        <div id="change-avatar-btn" style="position: absolute; bottom: 0; right: 0; background: var(--accent); width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2.5px solid var(--bg-core); cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
-           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
-        </div>
-      </div>
-      <h2 id="edit-display-name" style="margin: 0; font-size: 1.8rem; color: #fff;">${currentName.toUpperCase()}</h2>
-
-
-      <p style="color: var(--accent); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 5px;">Fortress ID Identity</p>
-    </div>
-
-    <!-- Body: Left Aligned Credentials -->
-    <div style="width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 1.5rem;">
-      
-      ${renderEditRow('Username', draft.user, 'edit-user')}
-      ${renderEditRow('Mobile No', draft.mob, 'edit-mob')}
-      ${renderEditRow('Email', draft.email, 'edit-email')}
-      
-      <!-- Biometrics Toggle -->
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <div>
-          <p style="color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase; margin: 0 0 4px 0;">Biometrics</p>
-          <p id="bio-status-text" style="color: #fff; font-size: 1.1rem; margin: 0;">${draft.bio ? 'Active' : 'Inactive'}</p>
-        </div>
-        <div id="bio-toggle" style="width: 50px; height: 26px; background: ${draft.bio ? 'var(--accent)' : '#333'}; border-radius: 15px; position: relative; cursor: pointer; transition: 0.3s;">
-          <div style="width: 20px; height: 20px; background: #fff; border-radius: 50%; position: absolute; top: 3px; left: ${draft.bio ? '27px' : '3px'}; transition: 0.3s;"></div>
-        </div>
+        <h2 id="edit-display-name" style="margin: 0; font-size: 1.8rem; color: #fff; font-family:var(--font-logo);">${currentName.toUpperCase()}</h2>
+        <p style="color: var(--accent); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; margin-top: 8px;">Edit Protocol Identity</p>
       </div>
 
-    </div>
+      <div style="width: 100%; max-width: 450px; margin: 0 auto; display: flex; flex-direction: column; gap: 1.2rem;">
+        ${renderEditRow('Protocol Username', draft.user, 'edit-user')}
+        ${renderEditRow('Frequency (Mob)', draft.mob, 'edit-mob')}
+        ${renderEditRow('Signal (Email)', draft.email, 'edit-email')}
+        
+        <div class="promo-card" style="display: flex; justify-content: space-between; align-items: center; border-color: rgba(255,255,255,0.1);">
+          <div>
+            <h4 style="margin:0; color:#fff; font-size:0.9rem;">Biometric Pulse ID</h4>
+            <p style="margin:4px 0 0 0; color:var(--text-muted); font-size:0.75rem;">Enable high-speed terminal decrypt.</p>
+          </div>
+          <div id="bio-toggle" style="width:50px; height:26px; border-radius:30px; background:${draft.bio ? 'var(--accent)' : 'rgba(255,255,255,0.1)'}; position:relative; cursor:pointer; transition:all 0.3s;">
+             <div style="position:absolute; top:3px; left:${draft.bio ? '27px' : '3px'}; width:20px; height:20px; background:#fff; border-radius:50%; transition:all 0.3s;"></div>
+          </div>
+        </div>
 
-    <!-- Footer: Confirm/Cancel -->
-    <div style="margin-top: 2rem; margin-bottom: 1.5rem; width: 100%; max-width: 400px; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-       <button id="cancel-edit" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #888; padding: 1rem; border-radius: 12px; cursor: pointer; font-weight:600;">Cancel</button>
-       <button id="confirm-edit" style="background: var(--accent); border: none; color: #000; padding: 1rem; border-radius: 12px; cursor: pointer; font-weight:800; box-shadow: 0 0 20px rgba(57,255,20,0.2);">Save Changes</button>
-    </div>
+        <div style="margin-top: 2rem;">
+          <button id="edit-confirm-btn" class="btn-primary" style="width: 100%; background: var(--accent); color: #000; font-weight: 800;">CONFIRM IDENTITY SYNC</button>
+        </div>
+      </div>
     </div>
   `;
 
-  document.body.appendChild(d);
+  mountDashboardModule(content, 0, 'PROTOCOL EDIT', renderProfilePage);
 
-  // Bind Inline Events
-  d.querySelectorAll('.edit-pencil').forEach(p => {
+  // Bind Switch Avatar
+  document.getElementById('change-avatar-btn').addEventListener('click', () => {
+    showAvatarPicker(draft.avatar, (newIdx) => {
+      draft.avatar = newIdx;
+      const theme = getAvatarTheme(newIdx);
+      const container = document.getElementById('edit-avatar-container');
+      container.style.background = theme.bg;
+      container.innerHTML = getAvatarHTML(newIdx, 40);
+    });
+  });
+
+  // Bind Bio Toggle
+  document.getElementById('bio-toggle').addEventListener('click', () => {
+    draft.bio = !draft.bio;
+    document.getElementById('bio-toggle').style.background = draft.bio ? 'var(--accent)' : 'rgba(255,255,255,0.1)';
+    document.getElementById('bio-toggle').firstElementChild.style.left = draft.bio ? '27px' : '3px';
+  });
+
+  // Confirm Sync
+  document.getElementById('edit-confirm-btn').addEventListener('click', () => {
+    localStorage.setItem('flux_user', draft.user);
+    localStorage.setItem('flux_mob', draft.mob);
+    localStorage.setItem('flux_email', draft.email);
+    localStorage.setItem('flux_bio', draft.bio);
+    localStorage.setItem('flux_avatar_idx', draft.avatar);
+    
+    // Global Header Sync
+    const navAvatar = document.getElementById('nav-avatar');
+    if (navAvatar) navAvatar.innerHTML = getAvatarHTML(draft.avatar, 28);
+    
+    renderProfilePage();
+    if (navigator.vibrate) navigator.vibrate([30, 50, 30]);
+  });
+
+  // Inline Pencil Edits
+  document.querySelectorAll('.edit-pencil').forEach(p => {
     p.addEventListener('click', (e) => {
       const fieldId = e.currentTarget.getAttribute('data-field');
       const container = document.getElementById(fieldId).parentNode;
@@ -885,49 +924,7 @@ function renderProfileEdit() {
       });
     });
   });
-
-  // Toggle Bio
-  document.getElementById('bio-toggle').addEventListener('click', () => {
-    draft.bio = !draft.bio;
-    document.getElementById('bio-toggle').style.background = draft.bio ? 'var(--accent)' : '#333';
-    document.getElementById('bio-toggle').firstElementChild.style.left = draft.bio ? '27px' : '3px';
-    document.getElementById('bio-status-text').innerText = draft.bio ? 'Active' : 'Inactive';
-  });
-
-  // Change Avatar
-  document.getElementById('change-avatar-btn').addEventListener('click', () => {
-    showAvatarPicker(draft.avatar, (newIdx) => {
-      draft.avatar = newIdx;
-      const theme = getAvatarTheme(newIdx);
-      const container = document.getElementById('edit-avatar-container');
-      container.style.background = theme.bg;
-      container.innerHTML = getAvatarHTML(newIdx, 40);
-    });
-  });
-
-  // Cancel
-  document.getElementById('cancel-edit').addEventListener('click', () => d.remove());
-
-  // Confirm - SAVE TO PERSISTENCE
-  document.getElementById('confirm-edit').addEventListener('click', () => {
-    localStorage.setItem('flux_user', draft.user);
-    localStorage.setItem('flux_mob', draft.mob);
-    localStorage.setItem('flux_email', draft.email);
-    localStorage.setItem('flux_bio', draft.bio);
-    localStorage.setItem('flux_avatar_idx', draft.avatar);
-    
-    // Immediate consistent update
-    const greeting = document.getElementById('home-greeting');
-    if (greeting) greeting.innerText = `HELLO, ${draft.user.split(' ')[0].toUpperCase()}`;
-    
-    const navAvatar = document.getElementById('nav-avatar');
-    if (navAvatar) navAvatar.innerHTML = getAvatarHTML(draft.avatar, 28);
-
-    d.remove();
-    if (navigator.vibrate) navigator.vibrate([30, 50, 30]);
-  });
 }
-
 
 function renderEditRow(label, value, id) {
   return `
@@ -943,10 +940,11 @@ function renderEditRow(label, value, id) {
   `;
 }
 
-
 function toggleSideNav(isOpen) {
   const nav = document.getElementById('side-nav');
   const overlay = document.getElementById('side-nav-overlay');
+  if (!nav || !overlay) return; // Not created yet
+
   if (isOpen) {
     nav.classList.add('show');
     overlay.classList.add('show');
@@ -956,8 +954,12 @@ function toggleSideNav(isOpen) {
   }
 }
 
+function dismissAllOverlays() {
+  toggleSideNav(false);
+  document.getElementById('flash-deal-active')?.remove();
+  document.querySelectorAll('.profile-overlay').forEach(el => el.remove());
+}
 
-/** Helper: activate a specific bottom nav item by index */
 function setNavActive(targetIndex) {
   const navItems = document.querySelectorAll('.bottom-nav .nav-item');
   navItems.forEach((n, i) => {
@@ -971,34 +973,18 @@ function setNavActive(targetIndex) {
   });
 }
 
-// ============================================================
-// PROFILE PAGE
-// ============================================================
+/**
+ * PROFILE PAGE: Main Dashboard Module
+ */
 function renderProfilePage() {
+  if (!authGuard()) return;
+
   const username = localStorage.getItem('flux_user') || 'User';
   const avatarIdx = parseInt(localStorage.getItem('flux_avatar_idx') || 0);
 
-  // Remove existing instances
-  document.getElementById('profile-view')?.remove();
-  document.getElementById('profile-backdrop')?.remove();
-
-  // === Backdrop: clicking outside the card closes popup ===
-  const backdrop = document.createElement('div');
-  backdrop.id = 'profile-backdrop';
-  backdrop.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:5999;';
-  document.body.appendChild(backdrop);
-
-  const closeAll = () => {
-    document.getElementById('profile-view')?.remove();
-    document.getElementById('profile-backdrop')?.remove();
-  };
-  backdrop.addEventListener('click', closeAll);
-
-  const d = document.createElement('div');
-  d.id = 'profile-view';
-  d.className = 'profile-overlay animated p5-active';
-  d.innerHTML = `
-     <div class="curved-deck">
+  const content = `
+    <div class="main-feed" style="gap: 1.5rem; padding-top: 10px;">
+      <div class="curved-deck" style="padding: 2.5rem 2rem; border-radius: 28px; width: 100%; max-width: 500px; margin: 0 auto; background: rgba(0,0,0,0.4);">
         <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 1.5rem; margin-bottom: 1.5rem;">
           <div style="display: flex; align-items: center; gap: 1.2rem;">
             <div class="avatar" style="width: 60px; height: 60px; background: ${getAvatarTheme(avatarIdx).bg}; border-width: 2.5px;">
@@ -1009,39 +995,33 @@ function renderProfilePage() {
               <p style="font-size: 1.4rem; margin: 2px 0 0 0; color: #fff; font-weight: 700; line-height: 1;">${username}</p>
             </div>
           </div>
-          <div id="prof-popup-edit" style="background: var(--accent); color: #000; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2.5px solid var(--bg-core); cursor: pointer; box-shadow: 0 4px 15px rgba(0,255,102,0.3); transition: transform 0.2s;" onclick="this.style.transform='scale(0.95)'">
+          <div id="prof-page-edit" style="background: var(--accent); color: #000; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2.5px solid var(--bg-core); cursor: pointer; box-shadow: 0 4px 15px rgba(0,255,102,0.3); transition: transform 0.2s;">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
           </div>
         </div>
 
-        <div class="promo-card" id="prof-card-data" style="text-align: left; width: 100%; max-width: 400px; border-color: rgba(255,255,255,0.2); margin-bottom: 2rem; background: rgba(0,0,0,0.3);">
+        <div class="promo-card" id="prof-card-data" style="text-align: left; width: 100%; border-color: rgba(255,255,255,0.2); margin-bottom: 2rem; background: rgba(255,255,255,0.03);">
             <p style="color: #00ffcc; text-transform: uppercase; font-size: 0.8rem; margin:0 0 5px 0;">Trust Level</p>
             <p style="margin: 0; color: white; font-weight: 700; font-size: 1.1rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 1rem; margin-bottom: 1rem;">Zero-Trust Biometric Secure ✓</p>
             <p style="color: #00ffcc; text-transform: uppercase; font-size: 0.8rem; margin:0 0 5px 0;">Identity Status</p>
-            <p style="margin: 0; color: white; line-height: 1.4;">Personal information encrypted &amp; stored consistently with Fortress ID protocols.</p>
-            <button id="logout-btn" style="margin-top: 2rem; width: 100%; background: rgba(255, 60, 60, 0.1); border: 1px solid #ff3c3c; color: #ff3c3c; padding: 0.6rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.8rem;">
-              Log Out / Reset Identity
+            <p style="margin: 0; color: white; line-height: 1.4;">Personal information encrypted & stored consistently with Fortress ID protocols.</p>
+            <button id="prof-logout-btn" style="margin-top: 2rem; width: 100%; background: rgba(255, 60, 60, 0.1); border: 1px solid #ff3c3c; color: #ff3c3c; padding: 0.8rem; border-radius: 10px; cursor: pointer; font-weight: 800; font-size: 0.85rem; letter-spacing: 0.05em;">
+              LOG OUT / RESET IDENTITY
             </button>
-          </div>
-
-          <button class="btn-primary" id="close-profile" style="width: 100%;">Return to FLUX</button>
-     </div>
+        </div>
+      </div>
+    </div>
   `;
-  document.body.appendChild(d);
 
-  document.getElementById('close-profile').addEventListener('click', closeAll);
-  document.getElementById('logout-btn').addEventListener('click', () => {
-    closeAll();
+  mountDashboardModule(content, 0, 'IDENTITY PASS');
+
+  document.getElementById('prof-page-edit').addEventListener('click', renderProfileEdit);
+  document.getElementById('prof-logout-btn').addEventListener('click', () => {
     hibernateEverything();
     localStorage.clear();
     location.reload();
   });
-  document.getElementById('prof-popup-edit').addEventListener('click', () => {
-    closeAll();
-    renderProfileEdit();
-  });
 }
-
 
 /**
  * ABOUT PAGE: Smart Congestion Orchestration
@@ -1136,6 +1116,10 @@ function renderHelpPage() {
       <section style="margin-top: 1rem;">
         <h2 style="font-family: var(--font-logo); font-size: 1.2rem; margin-bottom: 1.2rem; color: var(--accent); text-transform: uppercase; letter-spacing: 0.1em;">Transmit Support Request</h2>
         <div class="promo-card" id="contact-form-container">
+          <div class="form-group" style="margin-bottom: 0.8rem;">
+            <p style="color: var(--accent); font-size: 0.75rem; font-weight: 700; margin-bottom: 8px;">HOW DO I SET MY STADIUM?</p>
+            <p style="color: var(--text-muted); font-size: 0.8rem; line-height: 1.4; margin-bottom: 1.2rem;">Navigate to the <b>Entry</b> module and click the "Live Navigation Mode" card. This will open the Google Maps engine where you can lock your stadium frequency for the Proximity Protocol.</p>
+          </div>
           <div class="form-group" style="margin-bottom: 1.2rem;">
             <label style="color: var(--accent); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em;">Transmission Subject</label>
             <input type="text" id="help-subject" placeholder="e.g. Identity Access Issue" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); color: #fff; width: 100%; padding: 0.8rem; border-radius: 8px; margin-top: 4px; outline: none;" />
@@ -1266,16 +1250,16 @@ function renderTimeSlots(container) {
       <div id="entry-feed" style="width: 100%;">
         <h2 style="color: #00ff66; margin-top: 2rem; margin-bottom: 1.5rem; text-align: center;">Choose Your Window</h2>
         
-        <div class="promo-card" id="maps-engine-card" style="border-color: #00ff66; background: rgba(0, 255, 102, 0.05); padding: 2rem; margin-bottom: 2.5rem;">
+        <div class="promo-card" id="maps-engine-card" style="border-color: #00ff66; background: rgba(0, 255, 102, 0.05); padding: 2rem; margin-bottom: 2.5rem; cursor: pointer; transition: transform 0.2s;">
             <p style="color: #00ff66; font-weight: 700; margin-bottom: 8px; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.1em;">Live Navigation Mode</p>
-            <p style="font-size: 0.9rem; line-height: 1.6; margin-bottom: 1.5rem;">Syncing with <strong style="color:#fff;">Google Maps Platform</strong> for real-time stadium geo-fencing and crowd-flow optimization.</p>
+            <p style="font-size: 0.9rem; line-height: 1.6; margin-bottom: 1.5rem;">Syncing with <strong style="color:#fff;">Google Maps Platform</strong>. Tap to set your destination stadium and initialize the Proximity Protocol.</p>
             
             <div id="google-maps-engine" style="width: 100%; height: 160px; background: #080808; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center;">
                  <!-- Simulated Google Maps Engine (Dark Mode) -->
                  <div style="position: absolute; inset: 0; opacity: 0.3; background-image: radial-gradient(circle at 20% 30%, #333 1px, transparent 1px), radial-gradient(circle at 60% 70%, #333 1.5px, transparent 1px); background-size: 40px 40px;"></div>
                  <div style="position: relative; z-index: 5; text-align: center;">
                     <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#00ff66" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                    <p style="margin: 5px 0 0 0; font-size: 0.7rem; color: #00ff66; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700;">Maps Engine Active</p>
+                    <p style="margin: 5px 0 0 0; font-size: 0.7rem; color: #00ff66; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700;">Click to Launch Maps</p>
                  </div>
                  <div style="position: absolute; bottom: 8px; right: 8px; opacity: 0.6;">
                     <img src="https://www.gstatic.com/images/branding/googlelogo/2x/googlelogo_light_color_92x30dp.png" alt="Google" style="height: 12px;">
@@ -1304,6 +1288,8 @@ function renderTimeSlots(container) {
 
     });
   });
+
+  document.getElementById('maps-engine-card')?.addEventListener('click', renderMapModule);
 
   bindUniversalNav();
 }
@@ -1521,7 +1507,6 @@ function renderActivePass(container, geoContext) {
     renderEntryModule();
   });
 }
-
 function renderExpiredPass(container) {
   container.innerHTML = `
      <div class="lockout-screen animated">
@@ -1540,20 +1525,101 @@ function renderExpiredPass(container) {
      </div>
   `;
 
-  document.getElementById('rebook-btn').addEventListener('click', () => {
+  document.getElementById('rebook-btn')?.addEventListener('click', () => {
     mockEntryState.bookedSlot = null;
     mockEntryState.unlockTime = 0;
-    saveEntryState();
     renderEntryModule();
   });
 }
 
-// Start sequence
-function initApp() {
-  initP5Background(); // Initialize (starts paused)
-  renderAuthPage();
+function renderMapModule() {
+  if (!authGuard()) return;
+
+  const content = `
+    <div class="main-feed" style="padding-top: 10px; padding-bottom: 100px;">
+      <div class="promo-card" style="border-color: #00ff66; background: rgba(0, 255, 102, 0.05); padding: 1.5rem; margin-bottom: 2rem;">
+        <h2 style="color: #00ff66; margin-bottom: 0.5rem; font-size: 1.2rem;">STADIUM NAVIGATOR</h2>
+        <p style="color: var(--text-muted); font-size: 0.85rem; line-height: 1.4;">
+          Synchronizing with <b>Google Maps Platform</b>. Search for a stadium to initialize the Proximity Protocol.
+        </p>
+      </div>
+
+      <div style="width: 100%; height: 500px; min-height: 500px; flex-shrink: 0; background: #000; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); position: relative; overflow: hidden; margin-bottom: 2.5rem;">
+        <!-- Search UI Parent Container (Protected from squashing) -->
+        <div style="position: absolute; top: 0; left: 0; right: 0; height: 120px; z-index: 10; display: flex; align-items: center; padding: 0 1.5rem; background: linear-gradient(to bottom, rgba(10,10,12,0.9), transparent); gap: 12px;">
+          <input type="text" id="map-search-input" placeholder="Search Stadium Frequency (Press Enter)..." 
+                 style="flex: 1; height: 60px; min-height: 60px; flex-shrink: 0; background: #0a0a0c; border: 1px solid var(--accent); color: #fff; padding: 0 1.5rem; border-radius: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); outline: none; font-size: 1rem;">
+          <button id="external-maps-btn" title="Launch External Search" style="flex-shrink: 0; background: var(--accent); border: none; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 15px rgba(0,255,102,0.3);">
+             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>
+          </button>
+        </div>
+        
+        <iframe 
+          id="map-iframe"
+          width="100%" 
+          height="100%" 
+          frameborder="0" 
+          style="border:0; filter: invert(90%) hue-rotate(180deg) brightness(0.9); padding-top: 100px;" 
+          src="https://www.google.com/maps/embed/v1/search?key=${import.meta.env.VITE_GOOGLE_MAPS_KEY}&q=stadium+near+London"
+          allowfullscreen>
+        </iframe>
+      </div>
+
+      <div style="text-align: center; margin-bottom: 3rem;">
+        <button class="btn-primary" id="confirm-stadium-btn" style="background: var(--accent); color: #000; font-weight: 800; padding: 1.2rem 3rem; border-radius: 50px; box-shadow: 0 0 40px rgba(0,255,102,0.3); width: 100%; border: none; cursor: pointer; font-size: 1rem; letter-spacing: 0.1em; text-transform: uppercase;">
+            LOCK STADIUM FREQUENCY
+        </button>
+      </div>
+
+      <div class="promo-card" style="text-align: left; padding: 1.2rem; border-color: rgba(255,255,255,0.1); background: rgba(255,255,255,0.02); line-height: 1.6;">
+        <p style="color: var(--accent); font-weight: 700; font-size: 0.75rem; text-transform: uppercase; margin: 0 0 8px 0;">📡 Proximity Protocol Active</p>
+        <p style="color: rgba(255,255,255,0.6); font-size: 0.8rem; margin: 0;">
+           Your biometric pass will only unlock upon physical arrival within 500m of this location. Initialization confirms your target gate.
+        </p>
+      </div>
+
+      <div style="height: 100px;"></div>
+    </div>
+  `;
+
+  mountDashboardModule(content, 1, 'MAPS ENGINE');
+
+  const input = document.getElementById('map-search-input');
+  const iframe = document.getElementById('map-iframe');
+  
+  input?.addEventListener('keyup', (e) => {
+    if (e.key === 'Enter') {
+      const query = input.value.trim();
+      const apiKey = import.meta.env.VITE_GOOGLE_MAPS_KEY;
+      if (query) {
+        iframe.src = `https://www.google.com/maps/embed/v1/search?key=${apiKey}&q=${encodeURIComponent(query)}`;
+        logFirebaseEvent('stadium_search', { query });
+      }
+    }
+  });
+
+  document.getElementById('external-maps-btn')?.addEventListener('click', () => {
+    const query = (input?.value.trim() || 'stadium').replace(/\\s+/g, '+');
+    window.open(`https://www.google.com/maps/search/${query}`, '_blank');
+    logFirebaseEvent('external_maps_launched', { query });
+  });
+
+  document.getElementById('confirm-stadium-btn')?.addEventListener('click', () => {
+    const selected = input?.value.trim() || 'Detected Stadium';
+    localStorage.setItem('flux_target_stadium', selected);
+    logFirebaseEvent('stadium_frequency_locked', { location: selected });
+    
+    const btn = document.getElementById('confirm-stadium-btn');
+    btn.innerHTML = "FREQUENCY LOCKED ✓";
+    btn.style.background = "#fff";
+    btn.disabled = true;
+
+    setTimeout(renderEntryModule, 1000);
+  });
 }
-initApp();
+
+// App initialization consolidated to bootstrapper at EOF
+// function initApp() { ... }
 /**
  * AVATAR ENGINE & PICKER
  */
@@ -1634,21 +1700,25 @@ function getBottomNavHTML() {
 function bindUniversalNav() {
   // Navigation Icons
   document.getElementById('nav-home')?.addEventListener('click', () => {
+    dismissAllOverlays();
     setNavActive(0);
     renderHomePage(); 
   });
 
   document.getElementById('nav-entry-btn')?.addEventListener('click', () => {
+    dismissAllOverlays();
     setNavActive(1);
     renderEntryModule(); 
   });
   
   document.getElementById('nav-break')?.addEventListener('click', () => {
+    dismissAllOverlays();
     setNavActive(2);
     renderFlashMarket();
   });
 
   document.getElementById('nav-exit')?.addEventListener('click', () => {
+    dismissAllOverlays();
     setNavActive(3); 
     renderExitModule();
   });
@@ -1656,6 +1726,7 @@ function bindUniversalNav() {
   // Profile Avatar (Universal)
   document.querySelectorAll('#nav-avatar').forEach(el => {
     el.addEventListener('click', () => {
+      dismissAllOverlays();
       renderProfilePage(); // Fixed function name mismatch
     });
   });
@@ -2191,13 +2262,17 @@ function renderExclusiveContent() {
 /**
  * P5.js FLOW-FIELD ENGINE - LITERAL REVERT
  */
-let p5Instance = null;
 
 function initP5Background() {
   if (p5Instance) return;
 
   if (typeof p5 === 'undefined') {
-    setTimeout(initP5Background, 100);
+    if (p5RetryCount < MAX_P5_RETRIES) {
+      p5RetryCount++;
+      setTimeout(initP5Background, 100);
+    } else {
+      console.warn('Background Engine: P5 dependency not found after 5s. Disabling.');
+    }
     return;
   }
 
@@ -2278,7 +2353,7 @@ function initP5Background() {
       cnv.style('position', 'fixed');
       cnv.style('top', '0'); cnv.style('left', '0');
       cnv.style('z-index', '-1');
-      cnv.style('opacity', '0');
+      cnv.style('opacity', bgShouldBeWaking ? '1' : '0');
       cnv.style('transition', 'opacity 1s ease');
       cnv.style('pointer-events', 'none');
 
@@ -2286,7 +2361,7 @@ function initP5Background() {
         Particles.push(new Particle(Math.random() * p.width, Math.random() * p.height));
       }
       p.strokeWeight(opt.strokeWeight);
-      p.noLoop();
+      if (!bgShouldBeWaking) p.noLoop();
     };
 
     p.draw = () => {
@@ -2324,9 +2399,25 @@ function initP5Background() {
 
   p5Instance = new p5(sketch);
 
+  // Persistence Check: if visibility was requested before init
+  if (bgShouldBeWaking) {
+    p5Instance.wake();
+  }
+
   // Global Click Integration
   document.body.addEventListener('click', (e) => {
     if (e.target.closest('.promo-card') || e.target.closest('button')) return;
     p5Instance?.triggerRandomize();
   });
+}
+
+// --- BOOTSTRAPPER ---
+bgShouldBeWaking = false;
+
+initP5Background();
+renderAuthPage();
+
+// Final failsafe wake attempt
+if (bgShouldBeWaking) {
+  p5Instance?.wake();
 }
