@@ -604,8 +604,8 @@ input:focus {
 
 .entry-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr); /* Force 2x2 Grid */
-  gap: 1.5rem;
+  grid-template-columns: 1fr; /* Single column grid as requested */
+  gap: 1.2rem;
   width: 100%;
 }
 
@@ -618,8 +618,8 @@ input:focus {
 
 .slot-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: 1fr; /* Stacked layout for uniform width */
+  gap: 1.2rem;
   margin-top: 2rem;
   width: 100%;
 }
@@ -630,10 +630,10 @@ input:focus {
   flex-shrink: 0;
   background: #131313 !important; /* Authentic Break Page BG */
   background-color: rgba(19, 19, 19, 0.7) !important; /* Blended for translucency if needed */
-  border: 1px solid color-mix(in srgb, var(--card-theme, #fff) 30%, transparent) !important;
-  border-radius: 24px !important;
-  padding: 1rem 1.8rem 1.8rem 1.8rem !important;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), inset 0 0 20px color-mix(in srgb, var(--card-theme, transparent) 10%, transparent) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 18px !important;
+  padding: 1.25rem 1.5rem !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.35), inset 0 0 20px rgba(255, 255, 255, 0.02) !important;
   backdrop-filter: blur(20px) !important;
   -webkit-backdrop-filter: blur(20px) !important;
   transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease, filter 0.3s ease !important;
@@ -1226,8 +1226,8 @@ input:focus {
 /* === THE 2x2 ENTRY GRID === */
 .entry-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
+  grid-template-columns: 1fr;
+  gap: 1.2rem;
   width: 100%;
 }
 

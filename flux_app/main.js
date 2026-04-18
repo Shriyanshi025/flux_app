@@ -23,7 +23,8 @@ let mockEntryState = {
   bookedSlot: null,
   unlockTime: 0,
   isLate: false,
-  timerInterval: null
+  timerInterval: null,
+  lockedLocation: null // { name, lat, lng }
 };
 
 // --- FLASH MARKET: Simulation State ---
@@ -128,6 +129,12 @@ function loadEntryState() {
   if (saved) {
     const data = JSON.parse(saved);
     mockEntryState = { ...mockEntryState, ...data };
+  }
+  
+  // Also check for legacy or individual lock key
+  const legacyLock = localStorage.getItem('flux_target_stadium');
+  if (legacyLock && !mockEntryState.lockedLocation) {
+    mockEntryState.lockedLocation = { name: legacyLock, lat: 40.7128, lng: -74.0060 }; // Defaulting for legacy
   }
 }
 
@@ -1195,8 +1202,8 @@ function renderEntryModule() {
   if (!authGuard()) return;
 
   const content = `
-    <div id="entry-container">
-      <div id="entry-view" class="main-feed">
+    <div id="entry-container" style="width: 100%;">
+      <div id="entry-view" style="width: 100%; display: flex; flex-direction: column; align-items: stretch;">
          <!-- Content injected here by sub-renderers -->
       </div>
     </div>
@@ -1259,21 +1266,49 @@ function renderTimeSlots(container) {
       <div id="entry-feed" style="width: 100%;">
         <h2 style="color: #00ff66; margin-top: 2rem; margin-bottom: 1.5rem; text-align: center;">Choose Your Window</h2>
         
-        <div class="promo-card" id="maps-engine-card" style="border-color: #00ff66; background: rgba(0, 255, 102, 0.05); padding: 2rem; margin-bottom: 2.5rem; cursor: pointer; transition: transform 0.2s;">
-            <p style="color: #00ff66; font-weight: 700; margin-bottom: 8px; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.1em;">Live Navigation Mode</p>
-            <p style="font-size: 0.9rem; line-height: 1.6; margin-bottom: 1.5rem;">Syncing with <strong style="color:#fff;">Google Maps Platform</strong>. Tap to set your destination stadium and initialize the Proximity Protocol.</p>
+        <div class="promo-card" id="maps-engine-card" 
+             style="border-color: #00ff66; background: rgba(0, 255, 102, 0.05); padding: 2rem; margin-bottom: 2.5rem; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; position: relative; overflow: hidden;">
             
-            <div id="google-maps-engine" style="width: 100%; height: 160px; background: #080808; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center;">
-                 <!-- Simulated Google Maps Engine (Dark Mode) -->
-                 <div style="position: absolute; inset: 0; opacity: 0.3; background-image: radial-gradient(circle at 20% 30%, #333 1px, transparent 1px), radial-gradient(circle at 60% 70%, #333 1.5px, transparent 1px); background-size: 40px 40px;"></div>
-                 <div style="position: relative; z-index: 5; text-align: center;">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#00ff66" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                    <p style="margin: 5px 0 0 0; font-size: 0.7rem; color: #00ff66; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700;">Click to Launch Maps</p>
-                 </div>
-                 <div style="position: absolute; bottom: 8px; right: 8px; opacity: 0.6;">
-                    <img src="https://www.gstatic.com/images/branding/googlelogo/2x/googlelogo_light_color_92x30dp.png" alt="Google" style="height: 12px;">
-                 </div>
-            </div>
+            ${mockEntryState.lockedLocation ? `
+               <!-- LOCKED STATE -->
+               <div style="position: absolute; top:0; right: 0; background: #00ff66; color: #000; padding: 4px 12px; font-size: 0.65rem; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase; border-bottom-left-radius: 12px; z-index: 10;">
+                 LOCKED
+               </div>
+
+               <p style="color: #00ff66; font-weight: 700; margin-bottom: 8px; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.1em; display: flex; align-items: center; gap: 8px;">
+                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                 Location Locked
+               </p>
+               <h3 style="color: #fff; margin: 0 0 4px 0; font-size: 1.2rem;">${mockEntryState.lockedLocation.name}</h3>
+               <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1.5rem;">This is your selected destination. Proximity Protocol synced.</p>
+               
+               <div id="google-maps-engine" style="width: 100%; height: 160px; background: #080808; border-radius: 12px; border: 1px solid rgba(0, 255, 102, 0.2); position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; background-image: radial-gradient(circle at 50% 50%, rgba(0, 255, 102, 0.1) 0%, transparent 70%);">
+                  <div style="text-align: center; z-index: 5;">
+                     <div style="font-size: 1.5rem; margin-bottom: 8px;">📍</div>
+                     <p style="margin: 0; font-size: 0.75rem; color: #fff; font-weight: 600;">${mockEntryState.lockedLocation.lat.toFixed(4)}, ${mockEntryState.lockedLocation.lng.toFixed(4)}</p>
+                     <p style="margin: 4px 0 0 0; font-size: 0.65rem; color: #00ff66; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.8;">Frequency Stable</p>
+                  </div>
+                  
+                  <button id="resync-maps-btn" style="position: absolute; bottom: 12px; font-size: 0.7rem; background: rgba(0,255,102,0.1); border: 1px solid rgba(0,255,102,0.3); color: #00ff66; padding: 4px 12px; border-radius: 20px; cursor: pointer; backdrop-filter: blur(5px); transition: all 0.2s;">
+                    Edit / Switch Location
+                  </button>
+               </div>
+            ` : `
+               <!-- UNLOCKED STATE -->
+               <p style="color: #00ff66; font-weight: 700; margin-bottom: 8px; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.1em;">Live Navigation Mode</p>
+               <p style="font-size: 0.9rem; line-height: 1.6; margin-bottom: 1.5rem;">Syncing with <strong style="color:#fff;">Google Maps Platform</strong>. Tap to set your destination stadium and initialize the Proximity Protocol.</p>
+               
+               <div id="google-maps-engine" style="width: 100%; height: 160px; background: #080808; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                    <div style="position: absolute; inset: 0; opacity: 0.3; background-image: radial-gradient(circle at 20% 30%, #333 1px, transparent 1px), radial-gradient(circle at 60% 70%, #333 1.5px, transparent 1px); background-size: 40px 40px;"></div>
+                    <div style="position: relative; z-index: 5; text-align: center;">
+                       <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#00ff66" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                       <p style="margin: 5px 0 0 0; font-size: 0.7rem; color: #00ff66; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700;">Click to Launch Maps</p>
+                    </div>
+                    <div style="position: absolute; bottom: 8px; right: 8px; opacity: 0.6;">
+                       <img src="https://www.gstatic.com/images/branding/googlelogo/2x/googlelogo_light_color_92x30dp.png" alt="Google" style="height: 12px;">
+                    </div>
+               </div>
+            `}
         </div>
 
         <div class="entry-grid" style="display: grid; grid-template-columns: 1fr; gap: var(--global-gap);">${slotCards}</div>
@@ -1401,9 +1436,9 @@ function renderLockout(container) {
 }
 
 function checkGeofenceAndUnlock(container) {
-  const stadium = STADIUMS[0];
-  // Start with a realistic simulator distance for the demo
-  let geoResult = { mode: 'demo', dist: '5.4', stadium: stadium.name };
+  const stadium = mockEntryState.lockedLocation || STADIUMS[0];
+  // Start with a detecting state for realism
+  let geoResult = { mode: 'demo', dist: '...', stadium: stadium.name };
 
   // Trigger real location check (in bg) to update distance label if possible
   if (navigator.geolocation) {
@@ -1414,11 +1449,16 @@ function checkGeofenceAndUnlock(container) {
       
       // Update label live
       const distLabel = document.getElementById('proximity-dist-label');
-      if (distLabel) distLabel.innerHTML = `📍 Distance: ${geoResult.dist} km from nearest stadium.`;
+      if (distLabel) {
+        distLabel.innerHTML = `📍 Distance: <span style="color:#fff;">${geoResult.dist} km</span> from <b style="text-decoration: underline;">${stadium.name}</b>`;
+      }
     }, (err) => {
-       // Fallback already set to 5.4 for demo
-       console.warn('GPS restricted, using demo proximity.');
-    }, { timeout: 3000 });
+       console.warn('GPS access denied or timed out.');
+       const distLabel = document.getElementById('proximity-dist-label');
+       if (distLabel) {
+         distLabel.innerHTML = `⚠️ <span style="color:#ffaa00;">Enable location access</span> to calculate distance and arrival time to <b style="text-decoration: underline;">${stadium.name}</b>`;
+       }
+    }, { timeout: 5000, enableHighAccuracy: true });
   }
 
   // Instant render
@@ -1464,7 +1504,7 @@ function renderActivePass(container, geoContext) {
 
         <!-- Expanded Accent Divider (Full-Width boundary) -->
         <div id="proximity-dist-label" style="margin-top: 3.5rem; color: #ffaa00; font-size: 1rem; font-weight: 600; border-top: 2px solid rgba(255,170,0,0.2); padding-top: 1.5rem; width: 100%;">
-           📍 Distance: ${geoContext.dist || '??'} km from nearest stadium.
+           📍 Distance: <span style="color:#fff;">${geoContext.dist || '??'} km</span> from <b style="text-decoration: underline;">${geoContext.stadium || 'Target Stadium'}</b>
         </div>
       </div>
 
@@ -1614,14 +1654,33 @@ function renderMapModule() {
   });
 
   document.getElementById('confirm-stadium-btn')?.addEventListener('click', () => {
-    const selected = input?.value.trim() || 'Detected Stadium';
-    localStorage.setItem('flux_target_stadium', selected);
-    logFirebaseEvent('stadium_frequency_locked', { location: selected });
+    const selectedName = input?.value.trim() || 'Detected Stadium';
+    
+    // Try to find a match in STADIUMS array, otherwise default or create dynamic
+    const match = STADIUMS.find(s => s.name.toLowerCase().includes(selectedName.toLowerCase()));
+    
+    mockEntryState.lockedLocation = match ? { ...match } : {
+        name: selectedName,
+        lat: 40.7128, // Default fallback
+        lng: -74.0060,
+        isCustom: true
+    };
+
+    localStorage.setItem('flux_target_stadium', mockEntryState.lockedLocation.name);
+    saveEntryState();
+    
+    logFirebaseEvent('stadium_frequency_locked', { 
+        location: mockEntryState.lockedLocation.name,
+        lat: mockEntryState.lockedLocation.lat,
+        lng: mockEntryState.lockedLocation.lng
+    });
     
     const btn = document.getElementById('confirm-stadium-btn');
     btn.innerHTML = "FREQUENCY LOCKED ✓";
     btn.style.background = "#fff";
     btn.disabled = true;
+
+    if (navigator.vibrate) navigator.vibrate([40, 60, 40]);
 
     setTimeout(renderEntryModule, 1000);
   });
