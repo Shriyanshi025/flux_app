@@ -206,13 +206,59 @@ function authGuard() {
 }
 
 // ============================================================
+// ROLE-BASED ACCESS CONTROL
+// ============================================================
+function getUserRole() {
+  const user = localStorage.getItem('flux_user');
+  if (!user || user === 'GUEST') return 'guest';
+  return localStorage.getItem('flux_user_role') || 'registered';
+}
+
+function isGuest() { return getUserRole() === 'guest'; }
+
+// Client-side password obfuscation (demo only — no real backend)
+function simpleHash(str) {
+  return btoa(unescape(encodeURIComponent(str)));
+}
+
+// Reusable upgrade card shown wherever a feature is guest-restricted
+function guestUpgradeCard(featureName) {
+  return `
+    <div class="promo-card" style="border-color:#ffaa00; background:rgba(40,25,0,0.4); text-align:center; padding:1.5rem; margin-bottom:1rem;">
+      <p style="color:#ffaa00; font-weight:800; font-size:1rem; margin:0 0 0.5rem 0;">🔒 ${featureName}</p>
+      <p style="color:rgba(255,255,255,0.6); font-size:0.82rem; margin:0 0 1.2rem 0; line-height:1.6;">
+        Register to unlock:<br>
+        <span style="color:#fff;">Fast Lane Entry · QR Access · Discounts &amp; Exit Benefits</span>
+      </p>
+      <button class="btn-primary" id="guest-upgrade-btn" style="background:#ffaa00; color:#000; border-color:#ffaa00; margin-top:0;">
+        Create Free Account
+      </button>
+    </div>`;
+}
+
+// Bind upgrade button → switch to Register tab on auth page
+function bindGuestUpgradeBtn() {
+  document.getElementById('guest-upgrade-btn')?.addEventListener('click', () => {
+    localStorage.removeItem('flux_user');
+    localStorage.removeItem('flux_user_role');
+    renderAuthPage();
+    // Switch to Register tab
+    setTimeout(() => {
+      const regTab = document.querySelector('.tab[data-target="register-form"]');
+      regTab?.click();
+    }, 100);
+  });
+}
+
+// ============================================================
 // LOGIN / REGISTER SCREEN
 // ============================================================
 function renderAuthPage() {
   document.body.className = 'theme-auth';
   hibernateEverything(); 
   document.querySelector('#app').innerHTML = `
-    <div id="app-container">
+    <div id="app-container" style="height: 100%; overflow-y: auto; -ms-overflow-style: none; scrollbar-width: none;">
+      <div class="auth-content" style="padding-bottom: 100px;">
       <h1 class="logo">FLUX</h1>
       
       <div id="welcome-msg" class="hidden" style="text-align: center; margin-bottom: 2rem;">
@@ -227,6 +273,20 @@ function renderAuthPage() {
         </div>
 
         <div id="login-form" class="animated">
+          <div class="form-group">
+            <label>Email / Username</label>
+            <input type="text" id="login-username" placeholder="Enter username or email..." />
+          </div>
+
+          <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="login-password" placeholder="Enter password..." />
+          </div>
+
+          <button id="login-submit-btn" class="btn-primary" style="background: var(--accent); color: black; margin-bottom: 1rem;">
+            Login
+          </button>
+
           <button id="biometric-login-btn" class="btn-primary">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3a2 2 0 0 0-2 2"></path><path d="M19 3a2 2 0 0 1 2 2"></path><path d="M21 19a2 2 0 0 1-2 2"></path><path d="M5 21a2 2 0 0 1-2-2"></path><path d="M9 12a3 3 0 1 0 6 0 3 3 0 1 0-6 0"></path><path d="M9 16c0 1.657 1.343 3 3 3s3-1.343 3-3"></path><path d="M15 8V8.01"></path><path d="M9 8V8.01"></path></svg>
             FaceID / Fingerprint
@@ -241,27 +301,46 @@ function renderAuthPage() {
 
 
         <div id="register-form" class="hidden animated">
-          <div class="form-group">
-            <label>Username</label>
-            <input type="text" id="reg-username" placeholder="Enter username..." />
-          </div>
-          
-          <div class="form-group">
-            <label>Location</label>
-            <input type="text" id="reg-location" placeholder="e.g. Current Location" />
-            <button class="geo-btn" id="fetch-location-btn">Auto</button>
-          </div>
-
-          <div class="form-group">
-            <label>Nearest Stadium</label>
-            <input type="text" id="reg-stadium" placeholder="Select auto to compute..." readonly />
-          </div>
-
-          <button id="register-submit-btn" class="btn-primary" style="background: var(--accent); color: black;">
-            Initialize Fortress
-          </button>
+            <div class="form-group">
+              <label>Full Name</label>
+              <input type="text" id="reg-fullname" placeholder="Enter your full name..." />
+            </div>
+            <div class="form-group">
+              <label>Username</label>
+              <input type="text" id="reg-username" placeholder="Choose a username..." />
+            </div>
+            <div class="form-group">
+              <label>Email</label>
+              <input type="email" id="reg-email" placeholder="Enter email address..." />
+            </div>
+            <div class="form-group">
+              <label>Phone Number</label>
+              <input type="tel" id="reg-phone" placeholder="e.g. 9876543210" />
+            </div>
+            <div class="form-group">
+              <label>Password</label>
+              <input type="password" id="reg-password" placeholder="Min 6 characters..." />
+            </div>
+            <div class="form-group">
+              <label>Confirm Password</label>
+              <input type="password" id="reg-confirm-password" placeholder="Re-enter password..." />
+            </div>
+            <div class="form-group">
+              <label>Location</label>
+              <input type="text" id="reg-location" placeholder="e.g. Current Location" />
+              <button class="geo-btn" id="fetch-location-btn">Auto</button>
+            </div>
+            <div class="form-group">
+              <label>Nearest Stadium</label>
+              <input type="text" id="reg-stadium" placeholder="Select auto to compute..." readonly />
+            </div>
+            <div id="reg-error" style="color:#ff6b6b; font-size:0.82rem; margin-bottom:0.8rem; display:none; text-align:center;"></div>
+            <button id="register-submit-btn" class="btn-primary" style="background: var(--accent); color: black; margin-bottom: 1rem;">
+              Initialize Fortress
+            </button>
         </div>
     </div>
+      </div>
   `;
   bindEvents();
   loadEntryState();
@@ -307,7 +386,6 @@ function bindEvents() {
           fetchBtn.innerHTML = 'Done ✓';
         },
         () => {
-          // Fallback if denied
           document.getElementById('reg-location').value = '40.7128, -74.0060';
           document.getElementById('reg-stadium').value = 'Sector 4 Arena (New York)';
           fetchBtn.innerHTML = 'Done ✓';
@@ -320,19 +398,69 @@ function bindEvents() {
     }
   });
 
+  // ── REGISTER: Full validation ─────────────────────────────
   const regBtn = document.getElementById('register-submit-btn');
   if (regBtn) regBtn.addEventListener('click', () => {
-    const username = document.getElementById('reg-username').value.trim();
-    if (username) {
-      logFirebaseEvent('identity_created', { username });
-      localStorage.setItem('flux_user', username);
-      renderHomePage();
+    const showErr = (msg) => {
+      const el = document.getElementById('reg-error');
+      if (el) { el.textContent = msg; el.style.display = 'block'; }
+    };
+    const clearErr = () => {
+      const el = document.getElementById('reg-error');
+      if (el) el.style.display = 'none';
+    };
 
-    } else {
-      alert('Please enter a username');
-    }
+    clearErr();
+    const fullName  = document.getElementById('reg-fullname')?.value.trim() || '';
+    const username  = document.getElementById('reg-username')?.value.trim() || '';
+    const email     = document.getElementById('reg-email')?.value.trim() || '';
+    const phone     = document.getElementById('reg-phone')?.value.trim() || '';
+    const password  = document.getElementById('reg-password')?.value || '';
+    const confirm   = document.getElementById('reg-confirm-password')?.value || '';
+
+    if (!fullName)                          return showErr('Full name is required.');
+    if (!username)                          return showErr('Username is required.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showErr('Enter a valid email address.');
+    if (!/^\d{7,15}$/.test(phone))          return showErr('Phone must be 7–15 digits, numbers only.');
+    if (password.length < 6)               return showErr('Password must be at least 6 characters.');
+    if (password !== confirm)              return showErr('Passwords do not match.');
+
+    // Store hashed profile (no plaintext)
+    const profile = { fullName, username, email, phone, passwordHash: simpleHash(password) };
+    localStorage.setItem('flux_registered_user', JSON.stringify(profile));
+    localStorage.setItem('flux_user', username);
+    localStorage.setItem('flux_user_role', 'registered');
+    logFirebaseEvent('identity_created', { username, email });
+    renderHomePage();
   });
 
+  // ── LOGIN: Match stored credentials ──────────────────────
+  const loginBtn = document.getElementById('login-submit-btn');
+  if (loginBtn) loginBtn.addEventListener('click', () => {
+    const input    = document.getElementById('login-username')?.value.trim() || '';
+    const password = document.getElementById('login-password')?.value || '';
+
+    if (!input) return alert('Please enter your username or email.');
+
+    const stored = JSON.parse(localStorage.getItem('flux_registered_user') || 'null');
+    if (stored && (stored.username === input || stored.email === input)) {
+      // Registered user — verify password if provided
+      if (password && simpleHash(password) !== stored.passwordHash) {
+        return alert('Incorrect password. Please try again.');
+      }
+      localStorage.setItem('flux_user', stored.username);
+      localStorage.setItem('flux_user_role', 'registered');
+      logFirebaseEvent('login_submit', { username: stored.username });
+    } else {
+      // No stored profile — allow login (backward compat) as registered
+      localStorage.setItem('flux_user', input);
+      localStorage.setItem('flux_user_role', 'registered');
+      logFirebaseEvent('login_submit', { username: input });
+    }
+    renderHomePage();
+  });
+
+  // ── BIOMETRIC: Always → registered ───────────────────────
   const bioBtn = document.getElementById('biometric-login-btn');
   if (bioBtn) bioBtn.addEventListener('click', () => {
     bioBtn.innerHTML = 'Scanning Biometrics...';
@@ -342,6 +470,10 @@ function bindEvents() {
       bioBtn.style.background = 'var(--accent)';
       bioBtn.style.color = '#000';
       document.body.style.boxShadow = 'inset 0 0 100px var(--accent)';
+      const stored = JSON.parse(localStorage.getItem('flux_registered_user') || 'null');
+      const username = stored?.username || 'User';
+      localStorage.setItem('flux_user', username);
+      localStorage.setItem('flux_user_role', 'registered');
       setTimeout(() => {
         document.body.style.boxShadow = '';
         renderHomePage();
@@ -349,10 +481,12 @@ function bindEvents() {
     }, 1500);
   });
 
+  // ── GUEST: role = 'guest' ────────────────────────────────
   const guestBtn = document.getElementById('continue-guest-btn');
   if (guestBtn) guestBtn.addEventListener('click', (e) => {
     e.preventDefault();
     localStorage.setItem('flux_user', 'GUEST');
+    localStorage.setItem('flux_user_role', 'guest');
     renderHomePage();
   });
 }
@@ -554,6 +688,7 @@ function renderFlashMarket() {
   mountDashboardModule(content, 2, 'MARKET');
 
   document.getElementById('nav-back-btn')?.addEventListener('click', renderHomePage);
+  if (isGuest()) bindGuestUpgradeBtn();
   
   // Simulation Guard
   if (!marketInterval) {
@@ -614,10 +749,15 @@ function updateMarketDisplay() {
   }).join('');
 }
 function renderHeatmap() {
+  const guest = isGuest();
   return mockMarketData.map(item => {
     const density = (item.wait / 25) * 100;
     const barColor = density > 70 ? '#ff003c' : density > 40 ? '#ffaa00' : 'var(--accent)';
     const priceColor = item.priceCurrent < item.priceBase ? 'var(--accent)' : '#fff';
+    const crowdLabel = density > 70
+      ? `⚠️ High crowd at ${item.name}` : density > 40
+      ? `🟡 Moderate crowd at ${item.name}`
+      : `✅ Low crowd at ${item.name}`;
 
     return `
       <div class="stand-card">
@@ -625,12 +765,16 @@ function renderHeatmap() {
           <div class="stand-info">
             <h3>${item.name}</h3>
             <span class="type">${item.type} • SECTOR ${item.sector}</span>
+            <span style="font-size:0.72rem; color:var(--text-muted); display:block; margin-top:3px;">${crowdLabel}</span>
           </div>
           <div class="stand-price">
-            <span class="price-val" style="color: ${priceColor}">$${item.priceCurrent}</span>
-            <span class="price-delta" style="color: ${priceColor}">
-              ${item.priceCurrent < item.priceBase ? 'ARBITRAGE DEAL' : 'STANDARD PRICE'}
-            </span>
+            ${guest
+              ? `<span class="price-val" style="color:#ffaa00; font-size:0.78rem;">🔒 Registered Only</span>`
+              : `<span class="price-val" style="color: ${priceColor}">$${item.priceCurrent}</span>
+                 <span class="price-delta" style="color: ${priceColor}">
+                   ${item.priceCurrent < item.priceBase ? 'ARBITRAGE DEAL' : 'STANDARD PRICE'}
+                 </span>`
+            }
           </div>
         </div>
         
@@ -645,7 +789,7 @@ function renderHeatmap() {
         </div>
       </div>
     `;
-  }).join('');
+  }).join('') + (guest ? guestUpgradeCard('Discounts &amp; Personalized Offers — Registered Only') : '');
 }
 
 function showFlashDealAlert(congested, deal) {
@@ -1311,9 +1455,23 @@ function renderTimeSlots(container) {
             `}
         </div>
 
-        <div class="entry-grid" style="display: grid; grid-template-columns: 1fr; gap: var(--global-gap);">${slotCards}</div>
+        <div class="entry-grid" style="display: grid; grid-template-columns: 1fr; gap: var(--global-gap);">
+          ${isGuest()
+            ? guestUpgradeCard('Slot Booking &amp; QR Access — Registered Only')
+            : slotCards
+          }
+        </div>
       </div>
   `;
+
+  if (isGuest()) {
+    container.querySelectorAll('#maps-engine-card').forEach(el =>
+      el.addEventListener('click', renderMapModule)
+    );
+    bindGuestUpgradeBtn();
+    bindUniversalNav();
+    return;
+  }
 
   container.querySelectorAll('.btn-book').forEach(btn => {
     btn.addEventListener('click', (e) => {
@@ -1609,7 +1767,7 @@ function renderMapModule() {
           height="100%" 
           frameborder="0" 
           style="border:0; filter: invert(90%) hue-rotate(180deg) brightness(0.9); padding-top: 100px;" 
-          src="https://www.google.com/maps/embed/v1/search?key=${import.meta.env.VITE_GOOGLE_MAPS_KEY}&q=stadium+near+London"
+          src="https://www.google.com/maps/embed/v1/search?key=${(() => { const k = import.meta.env.VITE_GOOGLE_MAPS_KEY; return (k && k.trim() !== '') ? k : 'AIzaSyA3oxIok5adpJPXg2qGBdYIcHWCINyO_dc'; })()}&q=stadium+near+London"
           allowfullscreen>
         </iframe>
       </div>
@@ -1639,7 +1797,14 @@ function renderMapModule() {
   input?.addEventListener('keyup', (e) => {
     if (e.key === 'Enter') {
       const query = input.value.trim();
-      const apiKey = import.meta.env.VITE_GOOGLE_MAPS_KEY;
+      const apiKey =
+        import.meta.env.VITE_GOOGLE_MAPS_KEY &&
+        import.meta.env.VITE_GOOGLE_MAPS_KEY.trim() !== ''
+          ? import.meta.env.VITE_GOOGLE_MAPS_KEY
+          : 'AIzaSyA3oxIok5adpJPXg2qGBdYIcHWCINyO_dc';
+      if (import.meta.env.DEV) {
+        console.log('FINAL API KEY (renderMapModule):', apiKey ? '[key loaded]' : '[EMPTY - fallback active]');
+      }
       if (query) {
         iframe.src = `https://www.google.com/maps/embed/v1/search?key=${apiKey}&q=${encodeURIComponent(query)}`;
         logFirebaseEvent('stadium_search', { query });
@@ -1897,8 +2062,8 @@ function renderExitModule() {
             </div>
           </div>
 
-          <button class="btn-primary" id="exit-action-btn" style="width:100%; background:${tier.color}; color:${tier.color === '#ff003c' ? '#fff' : '#000'};">
-            ${tier === exitTierData.sprinter ? '🚆 Open Fast Track Route' : tier === exitTierData.stroller ? '💰 View Surge Timeline' : '🎬 Unlock Exclusive Content'}
+          <button class="btn-primary" id="exit-action-btn" style="width:100%; background:${isGuest() ? '#333' : tier.color}; color:${isGuest() ? '#888' : (tier.color === '#ff003c' ? '#fff' : '#000')}; ${isGuest() ? 'cursor:default;' : ''}">
+            ${isGuest() ? '🔒 Register to Access Exit Benefits' : (tier === exitTierData.sprinter ? '🚆 Open Fast Track Route' : tier === exitTierData.stroller ? '💰 View Surge Timeline' : '🎬 Unlock Exclusive Content')}
           </button>
         </div>
 
@@ -1959,7 +2124,9 @@ function renderExitModule() {
             </div>
           </div>
           <p style="color:var(--text-muted); font-size:0.8rem; line-height:1.5; margin:0;">Rideshare attendees receive a <strong style="color:#ffaa00;">Surge Alert</strong>. The app shows real savings: waiting just 20 minutes cuts their ride cost significantly — money is the motivator, not a mandate.</p>
-          <div style="background:rgba(255,170,0,0.06); border:1px solid #ffaa0030; border-radius:10px; padding:0.8rem;">
+          ${isGuest()
+            ? `<div style="padding:0.8rem; background:rgba(40,25,0,0.3); border:1px solid #ffaa0040; border-radius:10px; color:#ffaa00; font-size:0.8rem; text-align:center;">🔒 Flexible departure discounts are available for registered users only.</div>`
+            : `<div style="background:rgba(255,170,0,0.06); border:1px solid #ffaa0030; border-radius:10px; padding:0.8rem;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
               <div style="text-align:center;">
                 <p style="color:#ff003c; font-size:1.2rem; font-weight:700; margin:0;" id="surge-price-now">$50</p>
@@ -1976,7 +2143,7 @@ function renderExitModule() {
                 <p style="color:var(--text-muted); font-size:0.65rem; margin:2px 0 0 0;">Wait 40 min</p>
               </div>
             </div>
-          </div>
+          </div>`}
         </div>
 
         <!-- Tier 3: Relaxed Departure -->
@@ -1992,13 +2159,16 @@ function renderExitModule() {
             </div>
           </div>
           <p style="color:var(--text-muted); font-size:0.8rem; line-height:1.5; margin:0;">Local and flexible attendees receive the <strong style="color:#8400ff;">Soft Exit</strong>. Their exit pass is locked for 15 minutes in exchange for exclusive locker room interview content streaming live on the screen.</p>
-          <div id="locker-access-trigger" style="background:rgba(132,0,255,0.06); border:1px solid #8400ff30; border-radius:10px; padding:0.8rem; display:flex; align-items:center; gap:0.8rem; cursor:pointer;">
-            <span style="font-size:1.5rem;">🎙️</span>
-            <div>
-              <p style="color:#8400ff; font-size:0.75rem; font-weight:700; margin:0;">LIVE: Locker Room Access</p>
-              <p style="color:var(--text-muted); font-size:0.7rem; margin:3px 0 0 0;">Captain's post-match interview · Exclusive to Relaxed attendees</p>
-            </div>
-            <div style="margin-left:auto; background:#8400ff; color:#fff; font-size:0.65rem; padding:4px 10px; border-radius:20px; font-weight:700;" id="anchor-timer">15:00</div>
+          ${isGuest()
+            ? `<div style="padding:0.8rem; background:rgba(40,25,0,0.3); border:1px solid #ffaa0040; border-radius:10px; color:#ffaa00; font-size:0.8rem; text-align:center; margin-top:0.8rem;">🔒 Locker Room &amp; exclusive content — Registered Only</div>`
+            : `<div id="locker-access-trigger" style="background:rgba(132,0,255,0.06); border:1px solid #8400ff30; border-radius:10px; padding:0.8rem; display:flex; align-items:center; gap:0.8rem; cursor:pointer; margin-top:0.8rem;">
+               <span style="font-size:1.5rem;">🎙️</span>
+               <div>
+                 <p style="color:#8400ff; font-size:0.75rem; font-weight:700; margin:0;">LIVE: Locker Room Access</p>
+                 <p style="color:var(--text-muted); font-size:0.7rem; margin:3px 0 0 0;">Captain's post-match interview · Verify location to unlock</p>
+               </div>
+               <div style="margin-left:auto; background:#8400ff; color:#fff; font-size:0.65rem; padding:4px 10px; border-radius:20px; font-weight:700;" id="anchor-timer">15:00</div>
+             </div>`}
           </div>
         </div>
 
@@ -2031,19 +2201,41 @@ function renderExitModule() {
 
   document.getElementById('nav-back-btn')?.addEventListener('click', renderHomePage);
 
-  // Bind Tier Action Button
-  const actionBtn = document.getElementById('exit-action-btn');
-  if (actionBtn) {
-    actionBtn.addEventListener('click', () => {
-      const t = getUserTier();
-      if (t === exitTierData.sprinter) renderPriorityRoute();
-      else if (t === exitTierData.stroller) renderSurgeTimeline();
-      else renderExclusiveContent();
+  if (isGuest()) {
+    bindGuestUpgradeBtn();
+  } else {
+    // Bind Tier Action Button
+    const actionBtn = document.getElementById('exit-action-btn');
+    if (actionBtn) {
+      actionBtn.addEventListener('click', () => {
+        const t = getUserTier();
+        if (t === exitTierData.sprinter) renderPriorityRoute();
+        else if (t === exitTierData.stroller) renderSurgeTimeline();
+        else renderExclusiveContent();
+      });
+    }
+
+    // Locker Room Trigger — GPS proximity check for live streaming
+    document.getElementById('locker-access-trigger')?.addEventListener('click', () => {
+      const stadium = mockEntryState.lockedLocation || STADIUMS[0];
+      if (!navigator.geolocation) {
+        renderExclusiveContent(); // fallback if GPS unavailable
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const dist = haversineKm(pos.coords.latitude, pos.coords.longitude, stadium.lat, stadium.lng);
+          if (dist <= 50) { // within 50km for demo (real = 1km)
+            renderExclusiveContent();
+          } else {
+            const zone = document.getElementById('locker-access-trigger');
+            if (zone) zone.innerHTML = `<div style="padding:0.8rem; color:#ffaa00; font-size:0.82rem; text-align:center; width:100%;">📍 Live content is available only within stadium premises.<br><span style="color:var(--text-muted); font-size:0.75rem;">You are ${dist.toFixed(1)} km away from ${stadium.name}.</span></div>`;
+          }
+        },
+        () => renderExclusiveContent() // GPS denied → allow for demo
+      );
     });
   }
-
-  // Bind Specific Locker Room Trigger
-  document.getElementById('locker-access-trigger')?.addEventListener('click', renderExclusiveContent);
 
   // ── Simulation loop ────────────────────────────────────────────
   if (exitInterval) clearInterval(exitInterval);

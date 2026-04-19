@@ -116,7 +116,26 @@ h1.logo {
   100% { text-shadow: 0 0 30px rgba(255, 255, 255, 0.4), 0 0 60px var(--bg-vignette); }
 }
 
+/* === AUTH PAGE SCROLL (scoped - does not affect dashboard) === */
+body.theme-auth #app {
+  overflow-y: auto;  /* Allow root to scroll on auth page only */
+}
+
+#app-container::-webkit-scrollbar {
+  display: none; /* Hide scrollbar - WebKit */
+}
+
+.auth-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  padding-bottom: 100px; /* Keep bottom buttons reachable */
+}
+/* === END AUTH PAGE SCROLL === */
+
 .auth-box {
+
   background: rgba(10, 10, 10, 0.6);
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 20px;

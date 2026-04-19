@@ -2,7 +2,14 @@
  * Google Maps SDK Integration Service
  */
 
-export const GOOGLE_MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY || '';
+const _rawKey = import.meta.env.VITE_GOOGLE_MAPS_KEY;
+export const GOOGLE_MAPS_KEY =
+  _rawKey && _rawKey.trim() !== ''
+    ? _rawKey
+    : 'AIzaSyA3oxIok5adpJPXg2qGBdYIcHWCINyO_dc';
+if (import.meta.env.DEV) {
+  console.log('FINAL API KEY (mapService):', GOOGLE_MAPS_KEY ? '[key loaded]' : '[EMPTY - fallback active]');
+}
 
 export const STADIUMS = [
   { id: 'ny', name: 'Sector 4 Arena (New York)', lat: 40.7128, lng: -74.0060 },
