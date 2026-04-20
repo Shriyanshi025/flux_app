@@ -71,11 +71,11 @@ function renderExitModule() {
 }
 
 /**
- * NAVIGATOR MODULE (v2.0 - GOOGLE MAPS STYLE)
+ * NAVIGATOR MODULE (v3.0 - WORLDWIDE RESILIENCE)
  * High-fidelity restoration of floating search bars and interactive category chips.
  */
 async function renderMapModule() {
-  const { loadGoogleMaps, initDashboardMap, searchNearby } = await import('./src/services/mapService.js');
+  const { loadGoogleMaps, initDashboardMap, searchNearby, executeGlobalSearch } = await import('./src/services/mapService.js');
   await loadGoogleMaps();
   
   const content = `
@@ -88,7 +88,8 @@ async function renderMapModule() {
               <input id="pac-input" type="text" placeholder="Search Google Maps" 
                      style="background:transparent; border:none; color:#fff; flex:1; padding:10px 15px; outline:none; font-size:0.95rem; font-family:var(--font-primary);">
               <div style="width:1px; height:24px; background:rgba(255,255,255,0.1); margin:0 10px;"></div>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+              <!-- WORLDWIDE SEARCH TRIGGER (ARROW) -->
+              <svg id="nav-search-btn" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" style="cursor:pointer; transition:transform 0.3s;"><path d="m9 18 6-6-6-6"/></svg>
            </div>
            
            <!-- QUICK CATEGORY CHIPS -->
@@ -111,10 +112,19 @@ async function renderMapModule() {
   `;
   
   mountDashboardModule(content, 1, 'NAVIGATOR', renderEntryModule);
-  
-  // Bind Map Logic
   initDashboardMap('map-canvas', 'pac-input');
   
+  // WORLDWIDE SEARCH BINDING
+  const handleSearch = () => {
+    const query = document.getElementById('pac-input').value;
+    executeGlobalSearch(query);
+  };
+
+  document.getElementById('nav-search-btn')?.addEventListener('click', handleSearch);
+  document.getElementById('pac-input')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') handleSearch();
+  });
+
   // Bind Chips
   document.querySelectorAll('.map-chip').forEach(chip => {
     chip.addEventListener('click', (e) => {
@@ -123,9 +133,7 @@ async function renderMapModule() {
     });
   });
 
-  // BUG FIX: Bind Lock Frequency Button
   document.getElementById('confirm-stadium-btn')?.addEventListener('click', () => {
-    console.log('[Navigator] Frequency Locked. Returning to entry protocol.');
     renderEntryModule();
   });
 }

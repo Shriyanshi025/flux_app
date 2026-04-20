@@ -10,6 +10,7 @@ let map = null;
 let marker = null;
 let searchBox = null;
 let placesService = null;
+let geocoder = null;
 
 export async function loadGoogleMaps() {
     if (window.google && window.google.maps) return;
@@ -41,9 +42,9 @@ export async function initDashboardMap(canvasId, inputId) {
     map = new Map(document.getElementById(canvasId), {
         center: mapCenter,
         zoom: 14,
-        mapId: "FLUX_NAVIGATOR_UI", // Vector map capability
+        mapId: "FLUX_NAVIGATOR_UI", 
         disableDefaultUI: true,
-        styles: MapStyles // High-fidelity dark mode
+        styles: MapStyles 
     });
 
     marker = new Marker({
@@ -63,10 +64,10 @@ export async function initDashboardMap(canvasId, inputId) {
 
     const input = document.getElementById(inputId);
     searchBox = new google.maps.places.SearchBox(input);
-
     placesService = new google.maps.places.PlacesService(map);
+    geocoder = new google.maps.Geocoder();
 
-    // Bias search results towards current viewport
+    // Soft Bias (Don't strictly restrict)
     map.addListener("bounds_changed", () => {
         searchBox.setBounds(map.getBounds());
     });
@@ -83,15 +84,14 @@ export async function initDashboardMap(canvasId, inputId) {
         if (place.geometry.viewport) {
             map.fitBounds(place.geometry.viewport);
         } else {
-            map.setCenter(place.geometry.location);
+            map.panTo(place.geometry.location);
             map.setZoom(17);
         }
     });
 
-    // MANUAL CLICK DISCOVERY (v2.0)
+    // MANUAL CLICK DISCOVERY
     map.addListener("click", (e) => {
-        const latLng = e.latLng;
-        resolveAddressDeep(latLng);
+        resolveAddressDeep(e.latLng);
     });
 
     marker.addListener("dragend", (e) => {
@@ -100,23 +100,40 @@ export async function initDashboardMap(canvasId, inputId) {
 }
 
 /**
- * SEARCH NEARBY (Intelligence Overhaul)
- * Uses PlacesService to find category-specific high-vibration targets.
+ * EXECUTE GLOBAL SEARCH (Worldwide Resilience v3.0)
+ * Force coordinate resolution for any city/country.
  */
+export function executeGlobalSearch(query) {
+    if (!query || !geocoder) return;
+    
+    console.log(`[MapService] Resolving worldwide: ${query}...`);
+    
+    geocoder.geocode({ address: query }, (results, status) => {
+        if (status === "OK" && results[0]) {
+            const place = results[0];
+            updateTargetLocation(place.geometry.location, place.formatted_address);
+            
+            if (place.geometry.viewport) {
+                map.fitBounds(place.geometry.viewport);
+            } else {
+                map.panTo(place.geometry.location);
+                map.setZoom(15);
+            }
+        } else {
+            console.warn("[MapService] Worldwide resolution failed for:", query);
+        }
+    });
+}
+
 export function searchNearby(category) {
     if (!placesService || !map) return;
-    
-    console.log(`[MapService] Proximity Scan: ${category}...`);
-    
     const request = {
         location: map.getCenter(),
         radius: '5000',
         type: [category]
     };
-
     placesService.nearbySearch(request, (results, status) => {
         if (status === google.maps.places.PlacesServiceStatus.OK && results) {
-            // Pick the best match (first one)
             const place = results[0];
             updateTargetLocation(place.geometry.location, place.name);
             map.panTo(place.geometry.location);
@@ -131,7 +148,7 @@ function updateTargetLocation(latLng, name) {
 }
 
 function resolveAddressDeep(latLng) {
-    const geocoder = new google.maps.Geocoder();
+    if (!geocoder) return;
     geocoder.geocode({ location: latLng }, (results, status) => {
         if (status === "OK" && results[0]) {
             updateTargetLocation(latLng, results[0].formatted_address);
@@ -139,9 +156,6 @@ function resolveAddressDeep(latLng) {
     });
 }
 
-/**
- * HIGH-FIDELITY MAP STYLES
- */
 const MapStyles = [
     { "elementType": "geometry", "stylers": [{ "color": "#212121" }] },
     { "elementType": "labels.icon", "stylers": [{ "visibility": "off" }] },
