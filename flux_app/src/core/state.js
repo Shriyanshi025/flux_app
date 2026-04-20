@@ -19,7 +19,16 @@ export const state = {
   },
   
   p5Instance: null,
-  bgShouldBeWaking: false
+  bgShouldBeWaking: false,
+
+  // Intelligence Synthesis State (v2.0)
+  intelligenceHUD: {
+    flowPulse: 50,
+    syncIntegrity: 98.4,
+    stadiumDensity: 0.65,
+    identityHash: 'FLX-001X',
+    lastDirective: 'SYSTEM STABLE'
+  }
 };
 
 // Persistence functions

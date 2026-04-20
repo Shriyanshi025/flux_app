@@ -28,6 +28,44 @@ export const Navigation = {
     `;
   },
 
+  getHUDHTML: () => {
+    return `
+      <div id="global-intelligence-hud" class="hud-overlay animated" style="position:fixed; top:90px; right:clamp(1rem, 4.5vw, 1.5rem); z-index:9000; width:120px; text-align:right; pointer-events:none;">
+         <div style="background:rgba(0,0,0,0.6); backdrop-filter:blur(15px); border-radius:12px; padding:10px; border:1px solid rgba(255,255,255,0.05); box-shadow:0 10px 30px rgba(0,0,0,0.5);">
+            <p style="color:rgba(255,255,255,0.3); font-size:0.45rem; text-transform:uppercase; letter-spacing:2px; margin:0 0 5px 0;">Intelligence Hud</p>
+            
+            <div style="margin-bottom:8px;">
+               <p id="hud-directive" style="color:var(--accent); font-size:0.5rem; font-weight:900; margin:0;">SYSTEM STABLE</p>
+            </div>
+
+            <div style="margin-bottom:8px;">
+               <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <span style="color:rgba(255,255,255,0.2); font-size:0.4rem;">FLOW</span>
+                  <span id="hud-flow" style="color:#fff; font-size:0.6rem; font-weight:900;">50</span>
+               </div>
+               <div style="height:2px; background:rgba(255,255,255,0.05); margin-top:2px;">
+                  <div id="hud-flow-bar" style="width:50%; background:var(--accent); height:100%; transition:width 2s ease;"></div>
+               </div>
+            </div>
+
+            <div>
+               <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <span style="color:rgba(255,255,255,0.2); font-size:0.4rem;">SYNC</span>
+                  <span id="hud-sync" style="color:#fff; font-size:0.6rem; font-weight:900;">99.8%</span>
+               </div>
+               <div style="height:2px; background:rgba(255,255,255,0.05); margin-top:2px;">
+                  <div id="hud-sync-bar" style="width:99%; background:#00e5ff; height:100%;"></div>
+               </div>
+            </div>
+
+            <div style="margin-top:10px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.05);">
+               <p id="hud-hash" style="color:rgba(255,255,255,0.2); font-size:0.4rem; font-family:monospace; margin:0;">FLX-001X</p>
+            </div>
+         </div>
+      </div>
+    `;
+  },
+
   getTopNavHTML: (isHome, pageTitle) => {
     const avatarIdx = parseInt(localStorage.getItem('flux_avatar_idx') || 0);
     return `

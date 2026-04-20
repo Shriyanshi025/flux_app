@@ -2,130 +2,245 @@ import { state } from '../core/state.js';
 import { EXIT_TIER_DATA } from '../core/constants.js';
 import { authService } from '../services/authService.js';
 import { uiUtils } from '../utils/uiUtils.js';
+import { FlowOrchestrator } from '../services/FlowOrchestrator.js';
+
+/**
+ * EXIT PROTOCOL - KINETIC HARDENING (v2.0 IOS)
+ * Implements a reactive departure ecosystem synchronized with the global heartbeat.
+ */
 
 export const ExitPage = {
   render: (mountDashboardModule) => {
     if (!authService.isAuth()) return;
 
-    const tier = EXIT_TIER_DATA.stroller; // Mock default
-
     const content = `
       <div id="exit-container" style="width:100%;">
-        <!-- TOP STATUS RIBBON (Legacy RESTORE) -->
-        <div class="market-ticker" id="exit-ticker" style="padding:0.75rem; display:flex; align-items:center; background:rgba(255,0,60,0.1); border-bottom:1px solid #ff003c;">
+        <!-- TOP STATUS RIBBON -->
+        <div class="market-ticker animated" id="exit-ticker" style="padding:0.75rem; display:flex; align-items:center; background:rgba(255,0,60,0.15); border-bottom:1px solid #ff003c; backdrop-filter:blur(10px);">
           <div class="pulse-dot" style="background:#ff003c; margin-right:12px;"></div>
           <div style="flex:1; color: #fff; font-weight:900; font-size:0.75rem; letter-spacing:2px; font-family:var(--font-logo);">EXIT PROTOCOL ALPHA ACTIVE</div>
+          <div id="exit-global-sync" style="font-size:0.5rem; color:rgba(255,255,255,0.4); font-family:monospace;">SYNC: 0.0%</div>
         </div>
         
         <div class="main-feed" style="gap:1.2rem; padding-bottom:150px;">
           
           <!-- SMART DEPARTURE GATE STATUS -->
-          <div class="promo-card animated" style="border-color:#00ff66; padding:1.5rem;">
+          <div class="promo-card animated" style="border-color:#00ff66; padding:1.5rem; background:rgba(0,0,0,0.5);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
                <p style="color:rgba(255,255,255,0.3); font-size:0.6rem; text-transform:uppercase; letter-spacing:2px; margin:0;">Target Departure Gate</p>
-               <span id="gate-sync-status" style="font-size:0.6rem; color:#00ff66; font-weight:900;">SYNCED</span>
+               <span id="gate-sync-status" style="font-size:0.6rem; color:#00ff66; font-weight:900;">SYNCED (V2)</span>
             </div>
             <h2 id="gate-id" style="color:#fff; font-size:2.4rem; font-weight:900; margin:0; font-family:var(--font-logo);">GATE B-4</h2>
-            <p style="color:var(--text-muted); font-size:0.85rem; margin-top:8px;">Estimated walk time: <b>6 MIN</b></p>
+            <p id="walk-time-est" style="color:var(--text-muted); font-size:0.85rem; margin-top:8px;">Estimated walk time: <b>6 MIN</b></p>
             <div class="divider" style="height:1px; background:rgba(255,255,255,0.05); margin:15px 0;"></div>
             <div style="display:flex; justify-content:space-between; align-items:center;">
                <p style="color:rgba(255,255,255,0.3); font-size:0.55rem; margin:0;">ROUTE INTEGRITY</p>
                <p id="route-integrity-val" style="color:#00ff66; font-size:0.7rem; font-weight:900; margin:0;">98.2%</p>
             </div>
-            <div style="background:rgba(255,255,255,0.05); height:4px; border-radius:2px; margin-top:8px;"><div id="route-integrity-bar" style="width:98%; background:#00ff66; height:100%; border-radius:2px;"></div></div>
+            <div style="background:rgba(255,255,255,0.05); height:4px; border-radius:2px; margin-top:8px;"><div id="route-integrity-bar" style="width:98%; background:#00ff66; height:100%; border-radius:2px; transition:width 1s ease;"></div></div>
           </div>
 
-          <!-- TRANSPORT SYNC DASHBOARD (RESTORED DEPTH) -->
-          <div class="promo-card" id="transport-card" style="border-color:rgba(255,255,255,0.1); padding:1.2rem;">
+          <!-- TRANSPORT SYNC DASHBOARD (v2.0 REACTIVE) -->
+          <div class="promo-card" id="transport-card" style="border-color:rgba(255,255,255,0.1); padding:1.2rem; background:rgba(18,18,18,0.4);">
             <p style="color:var(--text-muted); font-size:0.6rem; text-transform:uppercase; letter-spacing:2px; margin-bottom:1.2rem;">Live Transit Telemetry</p>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
-               <div style="background:rgba(255,255,255,0.03); border-radius:12px; padding:12px; border:1px solid rgba(255,255,255,0.05);">
+               <div class="transit-node" style="background:rgba(255,255,255,0.03); border-radius:12px; padding:12px; border:1px solid rgba(255,255,255,0.05);">
                   <div style="display:flex; justify-content:space-between; align-items:center;">
                     <span style="font-size:0.55rem; color:rgba(255,255,255,0.3); font-weight:800;">TRAIN A-LINE</span>
-                    <div class="pulse-dot" style="width:6px; height:6px; background:#00ff66;"></div>
+                    <div class="pulse-dot" id="train-dot" style="width:6px; height:6px; background:#00ff66;"></div>
                   </div>
                   <p id="transport-train" style="font-size:1.4rem; font-weight:900; margin:10px 0 0 0; color:#fff; font-family:var(--font-logo);">4 MIN</p>
                </div>
-               <div style="background:rgba(255,255,255,0.03); border-radius:12px; padding:12px; border:1px solid rgba(255,255,255,0.05);">
+               <div class="transit-node" style="background:rgba(255,255,255,0.03); border-radius:12px; padding:12px; border:1px solid rgba(255,255,255,0.05);">
                   <div style="display:flex; justify-content:space-between; align-items:center;">
                     <span style="font-size:0.55rem; color:rgba(255,255,255,0.3); font-weight:800;">BUS (SHUTTLE)</span>
-                    <div class="pulse-dot" style="width:6px; height:6px; background:#ffaa00;"></div>
+                    <div class="pulse-dot" id="bus-dot" style="width:6px; height:6px; background:#ffaa00;"></div>
                   </div>
                   <p id="transport-bus" style="font-size:1.4rem; font-weight:900; margin:10px 0 0 0; color:#fff; font-family:var(--font-logo);">12 MIN</p>
                </div>
                <div style="background:rgba(255,255,255,0.02); border-radius:12px; padding:15px; border:1px solid rgba(255,255,255,0.05); grid-column: span 2;">
                   <div style="display:flex; justify-content:space-between; align-items:center;">
                     <span style="font-size:0.6rem; color:rgba(255,255,255,0.4); font-weight:700;">RIDESHARE NETWORK</span>
-                    <span id="uber-surge" style="font-size:0.6rem; color:#ff003c; font-weight:900; letter-spacing:1px;">2.4x SURGE active</span>
+                    <span id="uber-surge" style="font-size:0.6rem; color:#ff003c; font-weight:900; letter-spacing:1px;">SYNCING VALS</span>
                   </div>
                   <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:10px;">
                     <p style="font-size:0.8rem; margin:0; color:var(--text-muted);">Wait time: <span id="transport-uber" style="color:#fff; font-weight:900;">8 MIN</span></p>
-                    <span style="color:var(--text-muted); font-size:0.6rem;">${(Math.random()*15 + 10).toFixed(0)} cars nearby</span>
+                    <span id="uber-cars" style="color:var(--text-muted); font-size:0.6rem;">--- cars nearby</span>
                   </div>
                </div>
             </div>
           </div>
 
-          <!-- WAVE METERS (KINETIC WAVE PRESSURE RESTORE) -->
-          <div class="promo-card" style="border-color:rgba(255,255,255,0.08);">
+          <!-- WAVE METERS (REACTIVE PHYSICS v2.0) -->
+          <div class="promo-card" id="exit-waves-card" style="border-color:rgba(255,255,255,0.08); background:rgba(0,0,0,0.6);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
                <p style="color:rgba(255,255,255,0.3); text-transform:uppercase; font-size:0.6rem; margin:0; letter-spacing:2px;">Concourse Flow Cadence</p>
-               <span style="font-size:0.6rem; color:#00ff66; font-weight:900; letter-spacing:1px;">NEXT WAVE: <span id="exit-countdown">15:00</span></span>
+               <div style="display:flex; align-items:center; gap:10px;">
+                  <span id="pressure-badge" style="background:#00ff66; color:#000; font-size:0.5rem; font-weight:900; padding:2px 6px; border-radius:4px;">OPTIMAL</span>
+                  <span style="font-size:0.6rem; color:#fff; font-weight:900; letter-spacing:1px;">NEXT WAVE: <span id="exit-countdown">15.0</span></span>
+               </div>
             </div>
             ${Object.entries(EXIT_TIER_DATA).map(([k, t], i) => `
-              <div style="margin-top: 20px;">
+              <div class="wave-row" data-tier="${k}" style="margin-top: 20px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                   <span style="font-size:0.9rem; font-weight:900; color:#fff; letter-spacing:1px; font-family:var(--font-logo);">${t.label.toUpperCase()}</span>
-                  <span style="font-size:0.7rem; color:var(--text-muted); font-weight:700;">${t.count} attendees</span>
+                  <span class="wave-count" style="font-size:0.7rem; color:var(--text-muted); font-weight:700;">${t.count} attendees</span>
                 </div>
-                <div style="background:rgba(255,255,255,0.03); height:8px; border-radius:4px; overflow:hidden; position:relative;">
-                  <div class="wave-pulse" style="width:${t.pct}%; background:${t.color}; height:100%; border-radius:4px; transition:width 2s ease;"></div>
-                  ${i === 0 ? '<div class="wave-flow-line"></div>' : ''}
+                <div style="background:rgba(255,255,255,0.03); height:12px; border-radius:6px; overflow:hidden; position:relative;">
+                  <div class="wave-bar" style="width:${t.pct}%; background:${t.color}; height:100%; border-radius:6px; transition:width 2s ease;"></div>
+                  <div class="wave-physics-overlay" style="position:absolute; inset:0; background:linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent); width:50%; transform:translateX(-100%);"></div>
                 </div>
               </div>
             `).join('')}
-            <p style="text-align:center; color:rgba(255,255,255,0.2); font-size:0.55rem; margin-top:20px; letter-spacing:4px;">WAVE PRESSURE MONITOR ACTIVE</p>
+            <button class="btn-primary" id="request-exit-pass" style="margin-top:2rem; height:50px; background:transparent; border-color:var(--accent); color:var(--accent); font-weight:900; letter-spacing:1px;">GENERATE DEPARTURE TICKET</button>
           </div>
         </div>
+      </div>
+
+      <!-- EXIT HANDSHAKE OVERLAY -->
+      <div id="exit-auth-overlay" class="animated hidden" style="position:fixed; inset:0; background:rgba(0,0,0,0.98); z-index:9500; display:flex; align-items:center; justify-content:center; padding:2rem; backdrop-filter:blur(25px);">
+         <div class="promo-card" style="width:100%; max-width:320px; text-align:center; padding:2rem; border-color:#ff003c; background:#000;">
+            <div id="exit-auth-stage">
+               <div class="pulse-dot" style="background:#ff003c; margin:0 auto 10px auto;"></div>
+               <p id="exit-ver-text" style="color:#ff003c; font-size:0.6rem; font-weight:900; letter-spacing:2px; text-transform:uppercase;">Calculating Route Safety</p>
+               <div style="margin-top:20px; background:rgba(255,255,255,0.05); height:2px; border-radius:1px;"><div id="exit-auth-bar" style="width:0%; background:#ff003c; height:100%; transition:width 0.4s;"></div></div>
+            </div>
+            <div id="exit-ticket-view" class="hidden">
+               <p style="color:#ff003c; font-size:0.7rem; font-weight:900; letter-spacing:5px; margin-bottom:2rem;">DEPARTURE TICKET</p>
+               <div style="width:180px; height:240px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.1); margin:0 auto; border-radius:16px; padding:20px; display:flex; flex-direction:column; align-items:center;">
+                  <div style="width:120px; height:120px; background:#fff; border-radius:8px; padding:8px;">
+                    ${QRComponent.generateSVG('EXIT-' + Date.now())}
+                  </div>
+                  <div style="margin-top:20px; text-align:center;">
+                     <p style="color:#fff; font-size:1.2rem; font-weight:900; margin:0;">GATE B-4</p>
+                     <p style="color:var(--text-muted); font-size:0.5rem; letter-spacing:1px; margin-top:5px;">AUTH: ${Math.random().toString(36).substr(2, 6).toUpperCase()}</p>
+                  </div>
+               </div>
+               <p style="color:rgba(255,255,255,0.3); font-size:0.6rem; margin-top:2rem;">Ticket is valid for 15 minutes. Follow Concourses B and C.</p>
+               <button class="btn-primary" id="close-exit-btn" style="margin-top:1.5rem; height:50px; background:rgba(255,0,60,0.1); border-color:#ff003c; color:#ff003c;">RETURN TO COMMAND</button>
+            </div>
+         </div>
       </div>
     `;
 
     mountDashboardModule(content, 3, 'EXIT-INTELLIGENCE');
-    ExitPage.initDeepSimulation();
+    ExitPage.bindIOSync();
+    ExitPage.bindInteractions();
   },
 
-  initDeepSimulation: () => {
-    if (state.exitInterval) clearInterval(state.exitInterval);
+  bindIOSync: () => {
+    const syncHandler = (e) => {
+      const metrics = e.detail;
+      ExitPage.reactiveTick(metrics);
+    };
     
-    let secondsLeft = 900;
-    state.exitInterval = setInterval(() => {
-      // 1. Tick Countdown
-      secondsLeft--;
-      const min = Math.floor(secondsLeft / 60);
-      const sec = secondsLeft % 60;
-      const cdEl = document.getElementById('exit-countdown');
-      if (cdEl) cdEl.innerText = `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
-      
-      // 2. Transport & Integrity simulation (LOST OBJECTS RESTORE)
-      if (Math.random() > 0.7) {
-        const train = document.getElementById('transport-train');
-        const bus = document.getElementById('transport-bus');
-        const uber = document.getElementById('transport-uber');
-        const surge = document.getElementById('uber-surge');
-        const integrityVal = document.getElementById('route-integrity-val');
-        const integrityBar = document.getElementById('route-integrity-bar');
-        
-        if (train) train.innerText = `${Math.floor(Math.random() * 8 + 1)} MIN`;
-        if (bus) bus.innerText = `${Math.floor(Math.random() * 15 + 5)} MIN`;
-        if (uber) uber.innerText = `${Math.floor(Math.random() * 20 + 2)} MIN`;
-        if (surge) surge.innerText = `${(Math.random() * 2 + 1).toFixed(1)}x SURGE ACTIVE`;
-        
-        if (integrityVal && integrityBar) {
-           const val = (95 + Math.random() * 4.9).toFixed(1);
-           integrityVal.innerText = `${val}%`;
-           integrityBar.style.width = `${val}%`;
-        }
+    window.addEventListener('flux-heartbeat', syncHandler);
+    ExitPage.reactiveTick(FlowOrchestrator.getMetrics());
+
+    // Cleanup local countdown
+    let secondsLeft = 15.0;
+    const cdInt = setInterval(() => {
+       const cdEl = document.getElementById('exit-countdown');
+       if (!cdEl) {
+          clearInterval(cdInt);
+          return;
+       }
+       secondsLeft = secondsLeft <= 0 ? 15.0 : secondsLeft - 0.1;
+       cdEl.innerText = secondsLeft.toFixed(1);
+    }, 100);
+
+    const observer = new MutationObserver(() => {
+      if (!document.getElementById('exit-container')) {
+        window.removeEventListener('flux-heartbeat', syncHandler);
+        observer.disconnect();
       }
-    }, 2000);
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  },
+
+  reactiveTick: (metrics) => {
+    const pulse = metrics.flowPulse;
+    const syncVal = metrics.syncIntegrity;
+
+    // Update Top Ribbon
+    const syncEl = document.getElementById('exit-global-sync');
+    if (syncEl) syncEl.innerText = `SYNC: ${syncVal}%`;
+
+    // Update Integrity
+    const integrityVal = document.getElementById('route-integrity-val');
+    const integrityBar = document.getElementById('route-integrity-bar');
+    if (integrityVal) {
+       const v = (syncVal - (pulse / 50)).toFixed(1);
+       integrityVal.innerText = `${v}%`;
+       integrityBar.style.width = `${v}%`;
+    }
+
+    // Update Transit (Synced)
+    const train = document.getElementById('transport-train');
+    const bus = document.getElementById('transport-bus');
+    const uber = document.getElementById('transport-uber');
+    const surge = document.getElementById('uber-surge');
+    const cars = document.getElementById('uber-cars');
+
+    if (train) {
+       train.innerText = `${Math.floor((100 - pulse) / 10) + 1} MIN`;
+       bus.innerText = `${Math.floor(pulse / 8) + 4} MIN`;
+       uber.innerText = `${Math.floor(pulse / 6) + 2} MIN`;
+       surge.innerText = `${(1 + pulse/100).toFixed(1)}x SURGE Active`;
+       cars.innerText = `${Math.floor(pulse * 0.4 + 10)} cars nearby`;
+
+       // Dot status
+       document.getElementById('train-dot').style.background = pulse < 40 ? '#00ff66' : '#ffaa00';
+       document.getElementById('bus-dot').style.background = pulse < 70 ? '#ffaa00' : '#ff003c';
+    }
+
+    // Update Pressure Physics
+    const pBadge = document.getElementById('pressure-badge');
+    if (pBadge) {
+       pBadge.innerText = pulse > 70 ? 'CRITICAL' : pulse > 40 ? 'DENSE' : 'OPTIMAL';
+       pBadge.style.background = pulse > 70 ? '#ff003c' : pulse > 40 ? '#ffaa00' : '#00ff66';
+    }
+
+    // Update Wave Meters
+    document.querySelectorAll('.wave-row').forEach(row => {
+       const tier = row.getAttribute('data-tier');
+       const t = EXIT_TIER_DATA[tier];
+       const bar = row.querySelector('.wave-bar');
+       const count = row.querySelector('.wave-count');
+       
+       // Slower waves when pressure is high
+       const offset = (pulse / 100) * 15;
+       bar.style.width = Math.min(100, t.pct + offset) + '%';
+       count.innerText = `${Math.round(t.count + (pulse / 2))} attendees`;
+    });
+  },
+
+  bindInteractions: () => {
+    document.getElementById('request-exit-pass').addEventListener('click', () => {
+       const overlay = document.getElementById('exit-auth-overlay');
+       const stage = document.getElementById('exit-auth-stage');
+       const view = document.getElementById('exit-ticket-view');
+       const bar = document.getElementById('exit-auth-bar');
+       const text = document.getElementById('exit-ver-text');
+
+       overlay.classList.remove('hidden');
+       stage.classList.remove('hidden');
+       view.classList.add('hidden');
+       bar.style.width = '0%';
+
+       // 3-Stage Verification
+       setTimeout(() => { bar.style.width = '40%'; text.innerText = "Analyzing Concourse Density"; }, 800);
+       setTimeout(() => { bar.style.width = '80%'; text.innerText = "Syncing Terminal B-4"; }, 1600);
+       setTimeout(() => {
+          bar.style.width = '100%';
+          text.innerText = "Access Granted";
+          stage.classList.add('hidden');
+          view.classList.remove('hidden');
+       }, 2200);
+    });
+
+    document.getElementById('close-exit-btn').addEventListener('click', () => {
+       document.getElementById('exit-auth-overlay').classList.add('hidden');
+    });
   }
 };

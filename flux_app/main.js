@@ -1,6 +1,6 @@
 /**
- * FLUX FORTRESS PROTOCOL - BOOTSTRAPPER (v1.5.0 HIGH-FIDELITY RESTORE)
- * Main entry point for the high-fidelity crowd orchestration prototype.
+ * FLUX FORTRESS PROTOCOL - BOOTSTRAPPER (v2.0 INTELLIGENCE SYNTHESIS)
+ * Main entry point for the high-fidelity crowd orchestration ecosystem.
  */
 
 import './style.css';
@@ -9,6 +9,7 @@ import { authService } from './src/services/authService.js';
 import { backgroundEngine } from './src/utils/backgroundEngine.js';
 import { Navigation } from './src/components/Navigation.js';
 import { resetLocationState } from './src/services/locationService.js';
+import { FlowOrchestrator } from './src/services/FlowOrchestrator.js';
 
 // Page Imports
 import { AuthPage } from './src/pages/AuthPage.js';
@@ -50,6 +51,8 @@ function renderActualApp() {
   if (!authService.isAuth()) {
     AuthPage.render(renderActualApp);
   } else {
+    // START GLOBAL INTELLIGENCE HEARTBEAT
+    FlowOrchestrator.init();
     renderHomePage();
   }
 }
@@ -72,7 +75,6 @@ function renderExitModule() {
 
 /**
  * NAVIGATOR MODULE (v3.0 - WORLDWIDE RESILIENCE)
- * High-fidelity restoration of floating search bars and interactive category chips.
  */
 async function renderMapModule() {
   const { loadGoogleMaps, initDashboardMap, searchNearby, executeGlobalSearch } = await import('./src/services/mapService.js');
@@ -80,19 +82,15 @@ async function renderMapModule() {
   
   const content = `
     <div id="navigator-full-screen" class="animated" style="position:relative; width:100%; height:82vh; background:#000; overflow:hidden;">
-        
-        <!-- FLOATING GOOGLE MAPS CONSOLE -->
         <div id="map-search-console" style="position:absolute; top:15px; left:15px; right:15px; z-index:100;">
            <div class="glass-search" style="display:flex; align-items:center; background:rgba(0,0,0,0.85); backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.15); border-radius:16px; padding:8px 15px; box-shadow:0 10px 30px rgba(0,0,0,0.5);">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" style="opacity:0.6;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
               <input id="pac-input" type="text" placeholder="Search Google Maps" 
                      style="background:transparent; border:none; color:#fff; flex:1; padding:10px 15px; outline:none; font-size:0.95rem; font-family:var(--font-primary);">
               <div style="width:1px; height:24px; background:rgba(255,255,255,0.1); margin:0 10px;"></div>
-              <!-- WORLDWIDE SEARCH TRIGGER (ARROW) -->
               <svg id="nav-search-btn" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" style="cursor:pointer; transition:transform 0.3s;"><path d="m9 18 6-6-6-6"/></svg>
            </div>
            
-           <!-- QUICK CATEGORY CHIPS -->
            <div class="category-scroller" style="display:flex; overflow-x:auto; gap:10px; margin-top:12px; padding-bottom:5px;">
               <button class="map-chip" data-category="stadium">🏟️ Stadiums</button>
               <button class="map-chip" data-category="restaurant">🍔 Food</button>
@@ -101,10 +99,7 @@ async function renderMapModule() {
               <button class="map-chip" data-category="mall">🛍️ Shopping</button>
            </div>
         </div>
-
         <div id="map-canvas" style="width:100%; height:100%;"></div>
-
-        <!-- ACTION BUTTONS -->
         <div id="map-actions-layer" style="position:absolute; bottom:100px; left:15px; right:15px; z-index:100;">
            <button class="btn-primary" id="confirm-stadium-btn" style="box-shadow:0 15px 40px rgba(0,255,102,0.4); font-family:var(--font-logo);">LOCK STADIUM FREQUENCY</button>
         </div>
@@ -114,25 +109,20 @@ async function renderMapModule() {
   mountDashboardModule(content, 1, 'NAVIGATOR', renderEntryModule);
   initDashboardMap('map-canvas', 'pac-input');
   
-  // WORLDWIDE SEARCH BINDING
   const handleSearch = () => {
     const query = document.getElementById('pac-input').value;
     executeGlobalSearch(query);
   };
-
   document.getElementById('nav-search-btn')?.addEventListener('click', handleSearch);
   document.getElementById('pac-input')?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') handleSearch();
   });
-
-  // Bind Chips
   document.querySelectorAll('.map-chip').forEach(chip => {
     chip.addEventListener('click', (e) => {
       const cat = e.target.getAttribute('data-category');
       searchNearby(cat);
     });
   });
-
   document.getElementById('confirm-stadium-btn')?.addEventListener('click', () => {
     renderEntryModule();
   });
@@ -152,6 +142,9 @@ function mountDashboardModule(content, navIndex, pageTitle = 'FLUX', backAction 
         ${Navigation.getTopNavHTML(isHome, pageTitle)}
       </header>
       
+      <!-- GLOBAL INTELLIGENCE HUB OVERLAY -->
+      ${Navigation.getHUDHTML()}
+
       <div id="module-viewport">
         ${content}
       </div>
@@ -162,7 +155,7 @@ function mountDashboardModule(content, navIndex, pageTitle = 'FLUX', backAction 
     </div>
   `;
 
-  // Bind Shared Shell UI
+  // Bind Shell Events
   Navigation.bindUniversalNav = () => {
     document.getElementById('nav-home')?.addEventListener('click', renderHomePage);
     document.getElementById('nav-entry-btn')?.addEventListener('click', renderEntryModule);
@@ -173,7 +166,7 @@ function mountDashboardModule(content, navIndex, pageTitle = 'FLUX', backAction 
     document.getElementById('nav-menu-btn')?.addEventListener('click', () => {
       Navigation.renderSideNav(
         () => ProfilePage.render(renderHomePage),
-        () => alert('FLUX Fortress v1.5.0'),
+        () => alert('FLUX Fortress v2.0.0-IOS'),
         () => HelpPage.render(mountDashboardModule)
       );
       Navigation.toggleSideNav(true);
@@ -183,6 +176,30 @@ function mountDashboardModule(content, navIndex, pageTitle = 'FLUX', backAction 
   Navigation.bindUniversalNav();
   setNavActive(navIndex);
   backgroundEngine.wake();
+  bindHUDResponsiveLogic();
+}
+
+/**
+ * INTELLIGENCE HUD SYNC (v2.0)
+ * Binds the global heartbeat to the UI.
+ */
+function bindHUDResponsiveLogic() {
+  window.addEventListener('flux-heartbeat', (e) => {
+    const data = e.detail;
+    const hudFlow = document.getElementById('hud-flow');
+    const hudSync = document.getElementById('hud-sync');
+    const hudDirective = document.getElementById('hud-directive');
+    const hudHash = document.getElementById('hud-hash');
+    const hudFlowBar = document.getElementById('hud-flow-bar');
+    const hudSyncBar = document.getElementById('hud-sync-bar');
+
+    if (hudFlow) hudFlow.innerText = data.flowPulse;
+    if (hudSync) hudSync.innerText = data.syncIntegrity + '%';
+    if (hudDirective) hudDirective.innerText = data.lastDirective;
+    if (hudHash) hudHash.innerText = data.identityHash;
+    if (hudFlowBar) hudFlowBar.style.width = data.flowPulse + '%';
+    if (hudSyncBar) hudSyncBar.style.width = (data.syncIntegrity - 0.2) + '%';
+  });
 }
 
 function setNavActive(idx) {
