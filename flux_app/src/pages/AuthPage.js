@@ -1,44 +1,49 @@
 import { authService } from '../services/authService.js';
 import { fetchUserLocation } from '../services/locationService.js';
 import { STADIUMS } from '../core/constants.js';
-import { state } from '../core/state.js';
 import { uiUtils } from '../utils/uiUtils.js';
 
 export const AuthPage = {
   render: (onSuccess) => {
     document.body.className = 'theme-auth';
     const appEl = document.querySelector('#app');
+    
+    // Auth content directly inside #app as per CSS 'body.theme-auth #app { overflow-y: auto; }'
     appEl.innerHTML = `
-      <div id="app-container" style="height: 100%; overflow-y: auto;">
-        <div class="auth-content" style="padding-bottom: 100px;">
-          <h1 class="logo">FLUX</h1>
-          <div class="auth-box">
-            <div class="tabs" id="auth-tabs">
-              <div class="tab active" data-target="login-form">Login</div>
-              <div class="tab" data-target="register-form">Register</div>
+      <div class="auth-content animated">
+        <h1 class="logo">FLUX</h1>
+        <div class="auth-box">
+          <div class="tabs" id="auth-tabs">
+            <div class="tab active" data-target="login-form">Login</div>
+            <div class="tab" data-target="register-form">Register</div>
+          </div>
+          
+          <div id="login-form" class="animated">
+            <div class="form-group"><label>Email / Username</label><input type="text" id="login-username" /></div>
+            <div class="form-group"><label>Password</label><input type="password" id="login-password" /></div>
+            <button id="login-submit-btn" class="btn-primary">Login</button>
+            <button id="biometric-login-btn" class="btn-primary">FaceID / Fingerprint</button>
+            <div style="margin-top: 1.5rem; text-align: center;">
+              <!-- Color disorder fix: Using the Flux brand accent #39ff14 instead of mismatched orange -->
+              <a href="#" id="continue-guest-btn" style="text-decoration:none; color:var(--text-muted); font-size:0.85rem; font-weight:600; transition:0.3s;">
+                Continue as <span style="color: #39ff14; text-decoration:underline;">GUEST</span>
+              </a>
             </div>
-            <div id="login-form" class="animated">
-              <div class="form-group"><label>Email / Username</label><input type="text" id="login-username" /></div>
-              <div class="form-group"><label>Password</label><input type="password" id="login-password" /></div>
-              <button id="login-submit-btn" class="btn-primary">Login</button>
-              <button id="biometric-login-btn" class="btn-primary">FaceID / Fingerprint</button>
-              <div style="margin-top: 1.5rem; text-align: center;">
-                <a href="#" id="continue-guest-btn">Continue as <span style="color: #ffaa00;">GUEST</span></a>
-              </div>
+          </div>
+
+          <div id="register-form" class="hidden animated">
+            <div class="form-group"><label>Full Name</label><input type="text" id="reg-fullname" /></div>
+            <div class="form-group"><label>Username</label><input type="text" id="reg-username" /></div>
+            <div class="form-group"><label>Email</label><input type="email" id="reg-email" /></div>
+            <div class="form-group"><label>Password</label><input type="password" id="reg-password" /></div>
+            <div class="form-group"><label>Confirm Password</label><input type="password" id="reg-confirm-password" /></div>
+            <div class="form-group">
+              <label>Location</label><input type="text" id="reg-location" />
+              <button class="geo-btn" id="fetch-location-btn">Auto</button>
             </div>
-            <div id="register-form" class="hidden animated">
-              <div class="form-group"><label>Full Name</label><input type="text" id="reg-fullname" /></div>
-              <div class="form-group"><label>Username</label><input type="text" id="reg-username" /></div>
-              <div class="form-group"><label>Email</label><input type="email" id="reg-email" /></div>
-              <div class="form-group"><label>Password</label><input type="password" id="reg-password" /></div>
-              <div class="form-group"><label>Confirm Password</label><input type="password" id="reg-confirm-password" /></div>
-              <div class="form-group">
-                <label>Location</label><input type="text" id="reg-location" /><button class="geo-btn" id="fetch-location-btn">Auto</button>
-              </div>
-              <div class="form-group"><label>Nearest Stadium</label><input type="text" id="reg-stadium" readonly /></div>
-              <div id="reg-error" style="color:#ff6b6b; display:none;"></div>
-              <button id="register-submit-btn" class="btn-primary">Initialize Fortress</button>
-            </div>
+            <div class="form-group"><label>Nearest Stadium</label><input type="text" id="reg-stadium" readonly /></div>
+            <div id="reg-error" style="color:#ff6b6b; display:none; font-size:0.8rem; margin-top:10px;"></div>
+            <button id="register-submit-btn" class="btn-primary">Initialize Fortress</button>
           </div>
         </div>
       </div>
@@ -74,25 +79,25 @@ export const AuthPage = {
     });
 
     document.getElementById('fetch-location-btn')?.addEventListener('click', async (e) => {
-      e.target.innerHTML = '...';
+      const btn = e.target;
+      btn.innerHTML = '...';
       try {
         const loc = await fetchUserLocation();
         const stadium = AuthPage.computeNearestStadium(loc.lat, loc.lng);
         document.getElementById('reg-location').value = `${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}`;
         document.getElementById('reg-stadium').value = stadium.name;
-        e.target.innerHTML = 'Done ✓';
+        btn.innerHTML = 'Done ✓';
       } catch (err) {
         document.getElementById('reg-location').value = '51.5074, -0.1278';
         document.getElementById('reg-stadium').value = 'O2 London';
-        e.target.innerHTML = 'Done ✓';
+        btn.innerHTML = 'Done ✓';
       }
     });
 
     document.getElementById('register-submit-btn')?.addEventListener('click', () => {
-      const showErr = (msg) => {
-        const el = document.getElementById('reg-error');
-        el.textContent = msg; el.style.display = 'block';
-      };
+      const errEl = document.getElementById('reg-error');
+      const showErr = (msg) => { errEl.textContent = msg; errEl.style.display = 'block'; };
+      
       const fullName = document.getElementById('reg-fullname').value.trim();
       const username = document.getElementById('reg-username').value.trim();
       const email = document.getElementById('reg-email').value.trim();
@@ -100,10 +105,12 @@ export const AuthPage = {
       const confirm = document.getElementById('reg-confirm-password').value;
 
       if (!fullName || !username || !email || password.length < 6 || password !== confirm) {
-        return showErr('Please fill all fields correctly.');
+        return showErr('Please verify all fields and matching passwords.');
       }
 
-      localStorage.setItem('flux_registered_user', JSON.stringify({ fullName, username, email, passwordHash: authService.simpleHash(password) }));
+      localStorage.setItem('flux_registered_user', JSON.stringify({ 
+        fullName, username, email, passwordHash: authService.simpleHash(password) 
+      }));
       localStorage.setItem('flux_user', username);
       localStorage.setItem('flux_user_role', 'registered');
       onSuccess();
@@ -112,11 +119,13 @@ export const AuthPage = {
     document.getElementById('login-submit-btn')?.addEventListener('click', () => {
       const input = document.getElementById('login-username').value.trim();
       const password = document.getElementById('login-password').value;
-      if (!input) return alert('Enter credentials');
+      if (!input) return alert('Input Required');
       
       const stored = JSON.parse(localStorage.getItem('flux_registered_user') || 'null');
       if (stored && (stored.username === input || stored.email === input)) {
-        if (password && authService.simpleHash(password) !== stored.passwordHash) return alert('Wrong password');
+        if (password && authService.simpleHash(password) !== stored.passwordHash) {
+          return alert('Unauthorized Access: Password Mismatch');
+        }
         localStorage.setItem('flux_user', stored.username);
       } else {
         localStorage.setItem('flux_user', input);
@@ -126,13 +135,15 @@ export const AuthPage = {
     });
 
     document.getElementById('biometric-login-btn')?.addEventListener('click', (e) => {
-      e.target.innerHTML = 'Scanning...';
+      const btn = e.target;
+      const originalText = btn.innerHTML;
+      btn.innerHTML = 'Restoring Biometrics...';
       setTimeout(() => {
         const stored = JSON.parse(localStorage.getItem('flux_registered_user') || 'null');
-        localStorage.setItem('flux_user', stored?.username || 'User');
+        localStorage.setItem('flux_user', stored?.username || 'GUEST_EXPRESS');
         localStorage.setItem('flux_user_role', 'registered');
         onSuccess();
-      }, 1000);
+      }, 800);
     });
 
     document.getElementById('continue-guest-btn')?.addEventListener('click', (e) => {

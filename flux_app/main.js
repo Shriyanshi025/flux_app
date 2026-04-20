@@ -1,5 +1,5 @@
 /**
- * FLUX FORTRESS PROTOCOL - BOOTSTRAPPER (v1.5.0 MODULAR)
+ * FLUX FORTRESS PROTOCOL - BOOTSTRAPPER (v1.5.0 MODULAR / UI RESTORE)
  * Main entry point for the high-fidelity crowd orchestration prototype.
  */
 
@@ -26,7 +26,6 @@ function renderApp() {
   if (!authService.isAuth()) {
     AuthPage.render(renderApp);
   } else {
-    // Basic guard: always start at Home on fresh boot or use location hash for routing
     renderHomePage();
   }
 }
@@ -51,7 +50,6 @@ async function renderMapModule() {
   const { loadGoogleMaps, initDashboardMap } = await import('./src/services/mapService.js');
   const google = await loadGoogleMaps();
   
-  // Logic for the Navigator specialized UI
   const content = `
     <div class="main-feed animated" style="padding-top: 10px; padding-bottom: 100px;">
       <div id="map-frame-container" style="width: 100%; height: 500px; background: #000; border-radius: 24px; position: relative; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
@@ -62,15 +60,12 @@ async function renderMapModule() {
   `;
   
   mountDashboardModule(content, 1, 'NAVIGATOR');
-  
-  // Initialize physical map logic...
-  // (Note: This is a simplified wrapper for mapService integration)
   initDashboardMap('map-canvas');
 }
 
 /**
- * DASHBOARD SHELL COORDINATOR
- * Manages the top-nav, bottom-nav, and content injection.
+ * DASHBOARD SHELL COORDINATOR (RESTORATION FIX)
+ * Restores the IDs required by style.css for scrolling (#module-viewport) and shell structure.
  */
 function mountDashboardModule(content, navIndex, pageTitle = 'FLUX', backAction = null) {
   document.body.className = 'theme-dashboard';
@@ -79,14 +74,18 @@ function mountDashboardModule(content, navIndex, pageTitle = 'FLUX', backAction 
   const isHome = navIndex === 0;
 
   appEl.innerHTML = `
-    <div id="app-container">
-      ${Navigation.getTopNavHTML(isHome, pageTitle)}
+    <div id="shell-container">
+      <header id="shell-header">
+        ${Navigation.getTopNavHTML(isHome, pageTitle)}
+      </header>
       
-      <main class="dashboard-main" style="padding-top: 80px; padding-bottom: 120px;">
+      <div id="module-viewport">
         ${content}
-      </main>
+      </div>
       
-      ${Navigation.getBottomNavHTML()}
+      <footer id="shell-footer">
+        ${Navigation.getBottomNavHTML()}
+      </footer>
     </div>
   `;
 
@@ -96,11 +95,11 @@ function mountDashboardModule(content, navIndex, pageTitle = 'FLUX', backAction 
     document.getElementById('nav-entry-btn')?.addEventListener('click', renderEntryModule);
     document.getElementById('nav-break')?.addEventListener('click', renderFlashMarket);
     document.getElementById('nav-exit')?.addEventListener('click', renderExitModule);
-    document.getElementById('nav-avatar')?.addEventListener('click', () => ProfilePage.render(renderApp));
+    document.getElementById('nav-avatar')?.addEventListener('click', () => ProfilePage.render(renderHomePage));
     document.getElementById('nav-back-btn')?.addEventListener('click', backAction || renderHomePage);
     document.getElementById('nav-menu-btn')?.addEventListener('click', () => {
       Navigation.renderSideNav(
-        () => ProfilePage.render(renderApp),
+        () => ProfilePage.render(renderHomePage),
         () => alert('FLUX Fortress v1.5'),
         () => HelpPage.render(mountDashboardModule)
       );

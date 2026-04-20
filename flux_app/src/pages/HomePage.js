@@ -6,11 +6,11 @@ export const HomePage = {
     const username = localStorage.getItem('flux_user')?.split(' ')[0].toUpperCase() || 'GUEST';
     
     const content = `
-      <div id="home-container" style="width: 100%;">
-        <div class="home-greeting" id="home-greeting" style="text-align: center; color: #fff; text-transform: uppercase;">
+      <div id="home-container">
+        <div class="home-greeting">
           HELLO, ${username}
         </div>
-        <div class="main-feed" id="home-feed" style="gap: 30px;">
+        <div class="main-feed" id="home-feed">
           <div class="promo-card card-arrival">
             <h3>Arrival: Green Carpet</h3>
             <p>Book a 10-minute arrival slot. Unlock the Fast Lane.</p>
@@ -27,8 +27,8 @@ export const HomePage = {
             <p>Avoid post-game congestion. Stay & Save.</p>
             <button class="btn-primary" id="open-exit-btn">View Relaxed Stay Perks</button>
           </div>
-          <div class="copyright-footer">
-            <p>&copy; 2026 Shriyanshi Sinha. All Rights Reserved.</p>
+          <div class="copyright-footer" style="padding: 2rem 0; text-align: center; opacity: 0.3; font-size: 0.7rem; letter-spacing: 0.1em;">
+            <p>&copy; 2026 FLUX FORTRESS. ALL RIGHTS RESERVED.</p>
           </div>
         </div>
       </div>
@@ -43,12 +43,16 @@ export const HomePage = {
     document.getElementById('open-market-btn')?.addEventListener('click', renderMarket);
     document.getElementById('open-exit-btn')?.addEventListener('click', renderExit);
     
-    HomePage.initSmartHomeLogic();
+    // DELAY INIT to ensure DOM is ready in #module-viewport
+    setTimeout(() => HomePage.initSmartHomeLogic(), 50);
   },
 
   initSmartHomeLogic: () => {
+    // CRITICAL: The scroll container is #module-viewport, not the home-feed or window.
+    const viewport = document.getElementById('module-viewport');
     const homeFeed = document.getElementById('home-feed');
-    if (!homeFeed) return;
+    if (!viewport || !homeFeed) return;
+
     const cards = Array.from(homeFeed.querySelectorAll('.promo-card'));
     const STICKY_TOP = 100;
 
@@ -56,8 +60,11 @@ export const HomePage = {
       cards.forEach((card, i) => {
         const nextCard = cards[i + 1];
         if (!nextCard) return;
+        
         const rect = card.getBoundingClientRect();
         const nextRect = nextCard.getBoundingClientRect();
+        
+        // Relative to the viewport container
         const startFadeY = rect.bottom;
         const endFadeY = STICKY_TOP + 20;
 
@@ -72,7 +79,8 @@ export const HomePage = {
       });
     };
 
-    homeFeed.addEventListener('scroll', updateCardVis);
+    // Attach to the correct scroll container
+    viewport.addEventListener('scroll', updateCardVis);
     updateCardVis();
   }
 };
