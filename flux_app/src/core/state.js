@@ -9,7 +9,6 @@ export const state = {
   },
   
   mockMarketData: [...INITIAL_MARKET_DATA],
-  
   marketInterval: null,
   
   flashNotifTracker: {
@@ -28,6 +27,27 @@ export const state = {
     stadiumDensity: 0.65,
     identityHash: 'FLX-001X',
     lastDirective: 'SYSTEM STABLE'
+  },
+
+  // v3.0 MASTERPIECE SIMULATION
+  stadiumMatrix: {
+    sectors: Array.from({ length: 9 }).map((_, i) => ({
+      id: i + 1,
+      name: `SECTOR ${i + 1}`,
+      occupancy: Math.floor(Math.random() * 400 + 100),
+      capacity: 1000,
+      status: 'NOMINAL'
+    })),
+    userSession: {
+      isCheckedIn: false,
+      walletBalance: 1500,
+      purchasedVouchers: [],
+      entryTimestamp: null,
+      currentSector: null
+    },
+    directives: [
+      { id: 1, text: "Redistribution: Sector 4 attendees suggest redirect to Gate D.", level: 'info' }
+    ]
   }
 };
 

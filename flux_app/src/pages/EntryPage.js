@@ -208,6 +208,8 @@ export const EntryPage = {
     `;
 
     document.getElementById('start-geo-verification').addEventListener('click', () => {
+      // MASTERPIECE v3.0: Trigger Stadium Check-in
+      StadiumMind.processAction('CHECK_IN', { uid });
       EntryPage.renderFinalPass(container, uid);
     });
   },
