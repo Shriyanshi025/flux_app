@@ -29,10 +29,11 @@ export const MarketPage = {
           </div>
 
           <!-- SMARTS: ALGORITHMIC RECOMMENDATION -->
-          <div class="promo-card market-intelligence-card animated" id="intel-card" style="margin-bottom: 1.5rem; border-color: #ff003c; background: rgba(255,0,60,0.05); overflow:hidden;">
+          <div class="promo-card animated" id="maps-engine-card" style="border-color: #00ff66; background:rgba(0,0,0,0.5); margin-bottom: 2rem; overflow:hidden;">
+            <div class="scan-beam" style="position:absolute; top:0; left:0; width:100%; height:1px; background:var(--accent-alt); opacity:0.5; animation:scanLine 3s infinite linear;"></div>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-               <h3 id="intel-header" style="color: #ff003c; text-transform: uppercase; margin:0; font-size:0.75rem; letter-spacing:2px; font-weight:900;">Directive: SYNCING...</h3>
-               <div class="pulse-dot" style="background:#ff003c;"></div>
+               <h3 id="intel-header" style="color: var(--accent-alt); text-transform: uppercase; margin:0; font-size:0.75rem; letter-spacing:2px; font-weight:900;">Directive: SYNCING...</h3>
+               <div class="pulse-dot" style="background:var(--accent-alt);"></div>
             </div>
             <p style="margin:0; font-size:0.95rem; color:#fff;">Recommendation: <b id="smart-rec-name">CALCULATING...</b></p>
             <div style="display:flex; gap:10px; margin-top:10px;">

@@ -4,8 +4,8 @@ import { StadiumMind } from '../services/StadiumMind.js';
 import { FlowOrchestrator } from '../services/FlowOrchestrator.js';
 
 /**
- * HOME PAGE - EXECUTIVE CONTROL TOWER (v3.0 IOS)
- * High-fidelity command center featuring live heatmaps and autonomous directives.
+ * HOME PAGE - THE SOVEREIGN CORE (v4.0 PHOENIX)
+ * Centered Intelligence Sphere with Broadcast Event Ticker.
  */
 
 export const HomePage = {
@@ -14,85 +14,79 @@ export const HomePage = {
     const username = (user.name || 'GUEST').split(' ')[0].toUpperCase();
     const session = state.stadiumMatrix.userSession;
     
+    // THE CINEMATIC CONTENT
     const content = `
       <div id="home-container" class="animated">
-        <!-- TOP HUD: TELEMETRY BAR -->
-        <div style="display:flex; justify-content:space-between; align-items:center; padding:15px 20px; background:rgba(255,255,255,0.03); border-radius:16px; margin-bottom:20px; border:1px solid rgba(255,255,255,0.05);">
-           <div>
-              <p style="color:rgba(255,255,255,0.3); font-size:0.5rem; text-transform:uppercase; letter-spacing:2px; margin:0;">Session Auth</p>
-              <h2 style="color:#fff; font-size:1.1rem; margin:2px 0 0 0; font-family:var(--font-logo);">${username}</h2>
-           </div>
-           <div style="text-align:right;">
-              <p style="color:rgba(255,255,255,0.3); font-size:0.5rem; text-transform:uppercase; letter-spacing:2px; margin:0;">Flux Balance</p>
-              <h2 id="home-wallet" style="color:var(--accent); font-size:1.1rem; margin:2px 0 0 0; font-family:var(--font-logo);">$${session.walletBalance}</h2>
-           </div>
+        <!-- SOVEREIGN BROADCAST TICKER -->
+        <div class="broadcast-ticker animated" id="home-broadcast-ticker">
+           BOOTING SOVEREIGN CORE PROTOCOL // SESSION ACTIVE
         </div>
 
-        <!-- SECTOR HEATMAP GRID -->
-        <div class="promo-card" style="padding:1.5rem; border-color:rgba(255,255,255,0.1); background:rgba(0,0,0,0.4); margin-bottom:20px;">
-           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-              <p style="color:#fff; font-size:0.75rem; font-weight:900; letter-spacing:1px; margin:0;">REGIONAL FLOW MATRIX</p>
-              <div style="font-size:0.5rem; color:var(--accent); text-transform:uppercase; letter-spacing:1px; display:flex; align-items:center; gap:5px;">
-                 <div class="status-dot active"></div> LIVE FEED
+        <div style="padding: 0 var(--screen-pad); margin-top:15px;">
+           <!-- TOP HUD: TELEMETRY -->
+           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem;">
+              <div>
+                 <span style="color:var(--text-dim); font-size:0.5rem; letter-spacing:3px; text-transform:uppercase;">Command Center</span>
+                 <h1 style="color:#fff; font-size:1.6rem; letter-spacing:-1px;">HELLO, ${username}</h1>
+              </div>
+              <div style="text-align:right;">
+                 <span style="color:var(--text-dim); font-size:0.5rem; letter-spacing:3px; text-transform:uppercase;">Credits</span>
+                 <h2 id="home-wallet" style="color:var(--accent); font-size:1.6rem; letter-spacing:-1px;">$${session.walletBalance}</h2>
               </div>
            </div>
-           <div id="home-heatmap-grid" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; height:120px;">
-              ${state.stadiumMatrix.sectors.map(s => `
-                <div class="heatmap-sector" data-sector="${s.id}" style="background:rgba(255,255,255,0.03); border-radius:8px; border:1px solid rgba(255,255,255,0.05); position:relative; overflow:hidden; transition:0.4s;">
-                   <div class="sector-fill" style="position:absolute; bottom:0; left:0; right:0; height:0%; background:var(--accent); opacity:0.1; transition:height 1s ease;"></div>
-                   <span style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:0.6rem; color:rgba(255,255,255,0.2); font-weight:900;">S${s.id}</span>
-                </div>
-              `).join('')}
+
+           <!-- SOVEREIGN DATA SPHERE (HEATMAP) -->
+           <div class="promo-card" style="padding:2rem; background:rgba(255,255,255,0.01); border-color:rgba(255,255,255,0.05); margin-bottom:2rem; perspective:1000px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                 <span style="color:#fff; font-size:0.7rem; font-weight:900; letter-spacing:2px;">STADIUM THERMAL MATRIX</span>
+                 <div style="display:flex; align-items:center; gap:8px; font-size:0.5rem; color:var(--accent); font-weight:900;">
+                    <div class="pulse-dot" style="background:var(--accent);"></div> CORE SYNCED
+                 </div>
+              </div>
+              <div id="home-heatmap-grid" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; transform: rotateX(15deg);">
+                 ${state.stadiumMatrix.sectors.map(s => `
+                   <div class="heatmap-sector" data-sector="${s.id}" style="height:100px;">
+                      <div class="sector-fill" style="position:absolute; bottom:0; left:0; right:0; height:0%; background:var(--accent); opacity:0.12; transition:height 1.2s cubic-bezier(0.19, 1, 0.22, 1);"></div>
+                      <div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+                         <span style="font-size:0.5rem; color:rgba(255,255,255,0.1); font-weight:900;">S${s.id}</span>
+                         <span class="sector-load" style="font-size:0.75rem; color:rgba(255,255,255,0.5); font-family:monospace; margin-top:2px;">--%</span>
+                      </div>
+                   </div>
+                 `).join('')}
+              </div>
            </div>
-        </div>
 
-        <!-- COMMAND FEED: AUTONOMOUS DIRECTIVES -->
-        <div id="command-feed-container" class="promo-card" style="border-color:#ff003c; background:rgba(255,0,60,0.02); padding:1rem; margin-bottom:25px; height:100px; overflow:hidden; position:relative;">
-           <div style="position:absolute; top:8px; left:12px; color:#ff003c; font-size:0.5rem; font-weight:900; letter-spacing:2px; text-transform:uppercase;">Command Log</div>
-           <div id="home-directives-list" style="margin-top:20px; display:flex; flex-direction:column; gap:8px;">
-              ${state.stadiumMatrix.directives.map(d => `
-                <p style="margin:0; font-size:0.65rem; color:rgba(255,255,255,0.6); font-family:monospace; line-height:1.2;">
-                   <span style="color:#ff003c;">></span> ${d.text}
-                </p>
-              `).join('')}
+           <!-- COMMAND LOG: EXECUTIVE DIRECTIVES -->
+           <div id="command-feed-container" class="promo-card" style="padding:1.5rem; border-color:var(--accent-alt); background:rgba(255,0,122,0.02); margin-bottom:2.5rem; min-height:120px;">
+              <span style="color:var(--accent-alt); font-size:0.5rem; font-weight:900; letter-spacing:3px; text-transform:uppercase;">Autonomous Directives</span>
+              <div id="home-directives-list" style="margin-top:15px; display:flex; flex-direction:column; gap:10px;">
+                 ${state.stadiumMatrix.directives.map(d => `
+                   <div class="directive-item" style="font-size:0.65rem; color:rgba(255,255,255,0.7); font-family:monospace; border-left:2px solid var(--accent-alt); padding-left:12px;">
+                      <span style="color:var(--accent-alt);">>>></span> ${d.text}
+                   </div>
+                 `).join('')}
+              </div>
            </div>
-        </div>
 
-        <!-- NAVIGATION ACTIONS -->
-        <div class="main-feed" id="home-feed" style="gap:1rem; padding-bottom:120px;">
-          <div class="stand-card promo-card card-arrival" style="min-height:auto; padding:1.2rem;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-               <h3 style="margin:0; font-size:1rem; font-family:var(--font-logo);">ENTRY PROTOCOL</h3>
-               <span style="font-size:0.5rem; background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px;">${session.isCheckedIn ? 'ACTIVE' : 'LOCKED'}</span>
-            </div>
-            <p style="font-size:0.75rem; color:rgba(255,255,255,0.4); margin-bottom:15px;">Hardware-mimicking verify/check-in simulation.</p>
-            <button class="btn-primary" id="open-entry-btn" style="height:45px; font-size:0.8rem;">LAUNCH ENTRY CHANNEL</button>
-          </div>
-
-          <div class="stand-card promo-card card-halftime" style="min-height:auto; padding:1.2rem;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-               <h3 style="margin:0; font-size:1rem; font-family:var(--font-logo);">FLASH MARKET</h3>
-               <span style="font-size:0.5rem; background:rgba(0,255,102,0.1); color:#00ff66; padding:2px 6px; border-radius:4px;">DYN-PRICING: ON</span>
-            </div>
-            <p style="font-size:0.75rem; color:rgba(255,255,255,0.4); margin-bottom:15px;">Dynamic pricing based on real-time sector density.</p>
-            <button class="btn-primary" id="open-market-btn" style="height:45px; font-size:0.8rem;">ACCESS MARKET Economy</button>
-          </div>
-
-          <div class="stand-card promo-card card-departure" style="min-height:auto; padding:1.2rem;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-               <h3 style="margin:0; font-size:1rem; font-family:var(--font-logo);">EXIT INTELLIGENCE</h3>
-               <span style="font-size:0.5rem; background:rgba(255,0,60,0.1); color:#ff003c; padding:2px 6px; border-radius:4px;">WAVE CAP: 15%</span>
-            </div>
-            <p style="font-size:0.75rem; color:rgba(255,255,255,0.4); margin-bottom:15px;">Priority wave dispersal and transit synchronization.</p>
-            <button class="btn-primary" id="open-exit-btn" style="height:45px; font-size:0.8rem;">INITIALIZE DEPARTURE</button>
-          </div>
+           <!-- NAVIGATION ACTIONS (The Cards) -->
+           <div id="home-actions" style="display:grid; grid-template-columns:1fr; gap:1.2rem; padding-bottom:120px;">
+              <div class="promo-card animated" id="open-entry-btn" style="padding:1.5rem; --card-theme:#00ff66;">
+                 <h3 style="font-size:0.9rem; margin:0;">VERIFY ENTRY PROTOCOL</h3>
+              </div>
+              <div class="promo-card animated" id="open-market-btn" style="padding:1.5rem; --card-theme:#00e5ff;">
+                 <h3 style="font-size:0.9rem; margin:0;">ACCESS MARKET ECONOMY</h3>
+              </div>
+              <div class="promo-card animated" id="open-exit-btn" style="padding:1.5rem; --card-theme:#ff007a;">
+                 <h3 style="font-size:0.9rem; margin:0;">INITIALIZE DEPARTURE</h3>
+              </div>
+           </div>
         </div>
       </div>
     `;
 
-    mountDashboardModule(content, 0, 'FLUX-COMMAND');
+    mountDashboardModule(content, 0, 'FLUX-SOVEREIGN');
     HomePage.bindEvents(renderEntry, renderMarket, renderExit);
-    HomePage.initSync();
+    HomePage.initInteractions();
   },
 
   bindEvents: (renderEntry, renderMarket, renderExit) => {
@@ -101,18 +95,20 @@ export const HomePage = {
     document.getElementById('open-exit-btn')?.addEventListener('click', renderExit);
   },
 
-  initSync: () => {
-    // 1. Initialize StadiumMind (singleton-ish)
+  initInteractions: () => {
     StadiumMind.init();
-
-    const syncHandler = (e) => {
-       HomePage.updateUI();
-    };
-
+    const syncHandler = (e) => { HomePage.updateUI(); };
     window.addEventListener('flux-heartbeat', syncHandler);
     HomePage.updateUI();
 
-    // Cleanup
+    // CINEMATIC MOUSE TRACKING for the Mesh Background
+    document.addEventListener('mousemove', (e) => {
+       const x = (e.clientX / window.innerWidth) * 100;
+       const y = (e.clientY / window.innerHeight) * 100;
+       document.documentElement.style.setProperty('--mouse-x', `${x}%`);
+       document.documentElement.style.setProperty('--mouse-y', `${y}%`);
+    });
+
     const observer = new MutationObserver(() => {
       if (!document.getElementById('home-container')) {
         window.removeEventListener('flux-heartbeat', syncHandler);
@@ -124,17 +120,22 @@ export const HomePage = {
 
   updateUI: () => {
     const matrix = state.stadiumMatrix;
-    const feed = document.getElementById('home-directives-list');
     const wallet = document.getElementById('home-wallet');
+    const ticker = document.getElementById('home-broadcast-ticker');
+    const feed = document.getElementById('home-directives-list');
     const grid = document.getElementById('home-heatmap-grid');
 
     if (wallet) wallet.innerText = `$${matrix.userSession.walletBalance}`;
+    
+    if (ticker && matrix.directives[0]) {
+       ticker.innerText = matrix.directives[0].text.toUpperCase();
+    }
 
     if (feed) {
-       feed.innerHTML = matrix.directives.map(d => `
-          <p class="directive-item animated" style="margin:0; font-size:0.65rem; color:rgba(255,255,255,0.6); font-family:monospace; line-height:1.2; border-left:2px solid ${d.level === 'warning' ? '#ff003c' : '#00e5ff'}; padding-left:8px;">
-             <span style="color:${d.level === 'warning' ? '#ff003c' : '#00e5ff'};">${d.level === 'warning' ? '!' : '>'}</span> ${d.text}
-          </p>
+       feed.innerHTML = matrix.directives.slice(0, 3).map(d => `
+          <div class="directive-item animated" style="font-size:0.65rem; color:rgba(255,255,255,0.7); font-family:monospace; border-left:2px solid var(--accent-alt); padding-left:12px;">
+             <span style="color:var(--accent-alt);">>>></span> ${d.text}
+          </div>
        `).join('');
     }
 
@@ -143,10 +144,14 @@ export const HomePage = {
           const secEl = grid.querySelector(`[data-sector="${s.id}"]`);
           if (secEl) {
              const fill = secEl.querySelector('.sector-fill');
+             const loadStr = secEl.querySelector('.sector-load');
              const pct = (s.occupancy / s.capacity) * 100;
              fill.style.height = pct + '%';
-             fill.style.background = s.status === 'CRITICAL' ? '#ff003c' : s.status === 'DENSE' ? '#ffaa00' : 'var(--accent)';
-             secEl.style.borderColor = s.status === 'CRITICAL' ? 'rgba(255,0,60,0.3)' : 'rgba(255,255,255,0.05)';
+             loadStr.innerText = Math.round(pct) + '%';
+             
+             const color = s.status === 'CRITICAL' ? 'var(--accent-alt)' : s.status === 'DENSE' ? 'var(--accent-gold)' : 'var(--accent)';
+             fill.style.background = color;
+             secEl.style.borderColor = s.status === 'CRITICAL' ? 'rgba(255,0,122,0.3)' : 'rgba(255,255,255,0.05)';
           }
        });
     }

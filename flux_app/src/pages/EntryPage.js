@@ -201,8 +201,11 @@ export const EntryPage = {
             <p style="color:#00ff66; font-size:0.7rem; font-weight:900; letter-spacing:2px; margin:0;">IDENTITY VERIFIED</p>
             <span style="font-size:0.6rem; color:rgba(255,255,255,0.3); font-family:monospace;">${uid}</span>
           </div>
-          ${SystemBrainWidget.render(distance)}
-          <button class="btn-primary" id="start-geo-verification" style="background: #00ff66; color:#000; font-weight: 900; margin-top:2rem; letter-spacing:1px; box-shadow:0 10px 30px rgba(0,255,102,0.3);">REVEAL FREQUENCY PASS</button>
+          <div class="scanning-container" style="position:relative; overflow:hidden; border-radius:12px; background:rgba(0,0,0,0.4); padding:20px;">
+            <div class="scan-beam" style="position:absolute; top:0; left:0; width:100%; height:2px; background:#00ff66; box-shadow:0 0 15px #00ff66; animation:scanLine 2s infinite linear;"></div>
+            ${SystemBrainWidget.render(distance)}
+          </div>
+          <button class="btn-primary" id="start-geo-verification" style="background: #00ff66; color:#000; font-weight: 900; margin-top:2rem; letter-spacing:1px; box-shadow:0 10px 30px rgba(0,255,102,0.3);">RELEASE FREQUENCY PULSE</button>
         </div>
       </div>
     `;
