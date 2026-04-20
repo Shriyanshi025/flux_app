@@ -1,30 +1,17 @@
-/**
- * Google Maps SDK Integration Service
- */
+import { setPinnedLocation, resolveLocationName, calculateDistance } from './locationService.js';
 
 const _rawKey = import.meta.env.VITE_GOOGLE_MAPS_KEY;
 export const GOOGLE_MAPS_KEY =
   _rawKey && _rawKey.trim() !== ''
     ? _rawKey
     : 'AIzaSyA3oxIok5adpJPXg2qGBdYIcHWCINyO_dc';
-if (import.meta.env.DEV) {
-  console.log('FINAL API KEY (mapService):', GOOGLE_MAPS_KEY ? '[key loaded]' : '[EMPTY - fallback active]');
-}
 
-export const STADIUMS = [
-  { id: 'ny', name: 'Sector 4 Arena (New York)', lat: 40.7128, lng: -74.0060 },
-  { id: 'ldn', name: 'O2 London', lat: 51.5074, lng: -0.1278 },
-  { id: 'tyo', name: 'Tokyo Dome', lat: 35.6762, lng: 139.6503 }
-];
-
-/**
- * Load Google Maps SDK
- */
 export function loadGoogleMaps() {
   if (typeof google !== 'undefined') return Promise.resolve(google);
-
   return new Promise((resolve, reject) => {
+    if (document.getElementById('google-maps-sdk')) return;
     const script = document.createElement('script');
+    script.id = 'google-maps-sdk';
     script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_KEY}&callback=initMapsCallback&libraries=geometry,places`;
     script.async = true;
     script.defer = true;
@@ -35,134 +22,87 @@ export function loadGoogleMaps() {
 }
 
 /**
- * Initialize a Map Instance
+ * HIGH-FIDELITY SMART MAP INITIALIZATION
+ * Restores the SearchBox + Geocoder fallback for worldwide 'Globe' navigation.
  */
-export async function initDashboardMap(elementId, centerLat, centerLng) {
+export async function initDashboardMap(elementId, searchInputId) {
   const google = await loadGoogleMaps();
-  const map = new google.maps.Map(document.getElementById(elementId), {
-    center: { lat: centerLat, lng: centerLng },
-    zoom: 14,
+  const mapCanvas = document.getElementById(elementId);
+  if (!mapCanvas) return;
+
+  const map = new google.maps.Map(mapCanvas, {
+    center: { lat: 40.7128, lng: -74.0060 }, // Default NYC
+    zoom: 12,
     styles: DARK_MAP_STYLE,
     disableDefaultUI: true,
-    scrollwheel: false,
-    gestureHandling: 'cooperative',
+    mapTypeControl: false,
+    streetViewControl: false,
+    fullscreenControl: false
+  });
+
+  const marker = new google.maps.Marker({
+    map,
+    draggable: true,
+    animation: google.maps.Animation.DROP,
+    icon: {
+      path: google.maps.SymbolPath.CIRCLE,
+      scale: 10,
+      fillColor: "#00ff66",
+      fillOpacity: 1,
+      strokeWeight: 2,
+      strokeColor: "#ffffff"
+    }
+  });
+
+  // RESTORE: WORLDWIDE SEARCH LOGIC
+  const input = document.getElementById(searchInputId);
+  if (input) {
+    const searchBox = new google.maps.places.SearchBox(input);
+    
+    searchBox.addListener('places_changed', () => {
+      const places = searchBox.getPlaces();
+      if (!places || places.length === 0) {
+        // FALLBACK: Global Geocoder for "World's Globe" resilience
+        const geocoder = new google.maps.Geocoder();
+        geocoder.geocode({ address: input.value }, (results, status) => {
+          if (status === 'OK') {
+            const loc = results[0].geometry.location;
+            updateMapToLocation(loc.lat(), loc.lng());
+          } else {
+            alert("LOCATION NOT FOUND ON WORLD GLOBE");
+          }
+        });
+        return;
+      }
+      const place = places[0];
+      if (!place.geometry || !place.geometry.location) return;
+      updateMapToLocation(place.geometry.location.lat(), place.geometry.location.lng());
+    });
+  }
+
+  const updateMapToLocation = (lat, lng) => {
+    const pos = { lat, lng };
+    map.setCenter(pos);
+    map.setZoom(15);
+    marker.setPosition(pos);
+    setPinnedLocation(lat, lng);
+    resolveLocationName(lat, lng);
+    calculateDistance();
+  };
+
+  map.addListener('click', (e) => {
+    updateMapToLocation(e.latLng.lat(), e.latLng.lng());
   });
 
   return map;
 }
 
 const DARK_MAP_STYLE = [
-  { elementType: "geometry", stylers: [{ color: "#1d2c4d" }] },
-  { elementType: "labels.text.fill", stylers: [{ color: "#8ec3b9" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#1a3646" }] },
-  {
-    featureType: "administrative.country",
-    elementType: "geometry.stroke",
-    stylers: [{ color: "#4b6878" }],
-  },
-  {
-    featureType: "administrative.land_parcel",
-    elementType: "labels.text.fill",
-    stylers: [{ color: "#64779e" }],
-  },
-  {
-    featureType: "administrative.province",
-    elementType: "geometry.stroke",
-    stylers: [{ color: "#4b6878" }],
-  },
-  {
-    featureType: "landscape.man_made",
-    elementType: "geometry.stroke",
-    stylers: [{ color: "#334e87" }],
-  },
-  {
-    featureType: "landscape.natural",
-    elementType: "geometry",
-    stylers: [{ color: "#023e58" }],
-  },
-  {
-    featureType: "poi",
-    elementType: "geometry",
-    stylers: [{ color: "#283d6a" }],
-  },
-  {
-    featureType: "poi",
-    elementType: "labels.text.fill",
-    stylers: [{ color: "#6f9ba5" }],
-  },
-  {
-    featureType: "poi",
-    elementType: "labels.text.stroke",
-    stylers: [{ color: "#1d2c4d" }],
-  },
-  {
-    featureType: "poi.park",
-    elementType: "geometry.fill",
-    stylers: [{ color: "#023e58" }],
-  },
-  {
-    featureType: "poi.park",
-    elementType: "labels.text.fill",
-    stylers: [{ color: "#3C7680" }],
-  },
-  {
-    featureType: "road",
-    elementType: "geometry",
-    stylers: [{ color: "#304a7d" }],
-  },
-  {
-    featureType: "road",
-    elementType: "labels.text.fill",
-    stylers: [{ color: "#98a5be" }],
-  },
-  {
-    featureType: "road",
-    elementType: "labels.text.stroke",
-    stylers: [{ color: "#1d2c4d" }],
-  },
-  {
-    featureType: "road.highway",
-    elementType: "geometry",
-    stylers: [{ color: "#2c6675" }],
-  },
-  {
-    featureType: "road.highway",
-    elementType: "geometry.stroke",
-    stylers: [{ color: "#255761" }],
-  },
-  {
-    featureType: "road.highway",
-    elementType: "labels.text.fill",
-    stylers: [{ color: "#b0d5ce" }],
-  },
-  {
-    featureType: "road.highway",
-    elementType: "labels.text.stroke",
-    stylers: [{ color: "#023e58" }],
-  },
-  {
-    featureType: "transit",
-    elementType: "line",
-    stylers: [{ color: "#283d6a" }],
-  },
-  {
-    featureType: "transit.line",
-    elementType: "geometry.fill",
-    stylers: [{ color: "#283d6a" }],
-  },
-  {
-    featureType: "transit.station",
-    elementType: "geometry",
-    stylers: [{ color: "#3a4762" }],
-  },
-  {
-    featureType: "water",
-    elementType: "geometry",
-    stylers: [{ color: "#0e1626" }],
-  },
-  {
-    featureType: "water",
-    elementType: "labels.text.fill",
-    stylers: [{ color: "#4e6d70" }],
-  },
+  { elementType: "geometry", stylers: [{ color: "#131313" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#39ff14" }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "#000000" }] },
+  { featureType: "administrative", elementType: "geometry.stroke", stylers: [{ color: "#333333" }] },
+  { featureType: "water", elementType: "geometry", stylers: [{ color: "#000000" }] },
+  { featureType: "road", elementType: "geometry", stylers: [{ color: "#222222" }] },
+  { featureType: "poi", stylers: [{ visibility: "off" }] }
 ];
