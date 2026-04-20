@@ -10,6 +10,7 @@ import { backgroundEngine } from './src/utils/backgroundEngine.js';
 import { Navigation } from './src/components/Navigation.js';
 import { resetLocationState } from './src/services/locationService.js';
 import { FlowOrchestrator } from './src/services/FlowOrchestrator.js';
+import { StadiumMind } from './src/services/StadiumMind.js';
 
 // Page Imports
 import { AuthPage } from './src/pages/AuthPage.js';

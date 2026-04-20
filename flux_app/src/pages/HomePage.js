@@ -40,6 +40,7 @@ export const HomePage = {
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                  <span style="color:#fff; font-size:0.7rem; font-weight:900; letter-spacing:2px;">STADIUM THERMAL MATRIX</span>
                  <div style="display:flex; align-items:center; gap:8px; font-size:0.5rem; color:var(--accent); font-weight:900;">
+                    <button id="provoke-event-btn" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:var(--accent); font-size:0.45rem; padding:2px 6px; border-radius:4px; cursor:pointer;">PROVOKE SYNC</button>
                     <div class="pulse-dot" style="background:var(--accent);"></div> CORE SYNCED
                  </div>
               </div>
@@ -57,15 +58,24 @@ export const HomePage = {
            </div>
 
            <!-- COMMAND LOG: EXECUTIVE DIRECTIVES -->
-           <div id="command-feed-container" class="promo-card" style="padding:1.5rem; border-color:var(--accent-alt); background:rgba(255,0,122,0.02); margin-bottom:2.5rem; min-height:120px;">
-              <span style="color:var(--accent-alt); font-size:0.5rem; font-weight:900; letter-spacing:3px; text-transform:uppercase;">Autonomous Directives</span>
-              <div id="home-directives-list" style="margin-top:15px; display:flex; flex-direction:column; gap:10px;">
+           <div id="command-feed-container" class="promo-card" style="padding:1.5rem; border-color:var(--accent-alt); background:rgba(255,0,122,0.02); margin-bottom:1.5rem; min-height:100px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                 <span style="color:var(--accent-alt); font-size:0.5rem; font-weight:900; letter-spacing:3px; text-transform:uppercase;">Intelligence Stream</span>
+                 <span id="intel-algorithm" style="font-size:0.4rem; color:rgba(255,255,255,0.2); font-family:monospace;">STADIUM_MIND_v4.0</span>
+              </div>
+              <div id="home-directives-list" style="margin-top:12px; display:flex; flex-direction:column; gap:8px;">
+                 <div style="font-size:0.55rem; color:rgba(255,255,255,0.3); font-family:monospace;">[SYS] BOOTING HEAVY LOGIC ENGINE... [OK]</div>
                  ${state.stadiumMatrix.directives.map(d => `
                    <div class="directive-item" style="font-size:0.65rem; color:rgba(255,255,255,0.7); font-family:monospace; border-left:2px solid var(--accent-alt); padding-left:12px;">
                       <span style="color:var(--accent-alt);">>>></span> ${d.text}
                    </div>
                  `).join('')}
               </div>
+           </div>
+
+           <!-- TELEMETRY FEED (The Heavy Logic Trace) -->
+           <div id="telemetry-trace" style="margin-bottom:2rem; padding: 0 10px; font-family:monospace; font-size:0.5rem; color:rgba(57, 255, 20, 0.3); height:20px; overflow:hidden;">
+              <span id="trace-line">CALCULATING SECTOR THERMALS... [SYNC: 99.8%] [LOAD: NOMINAL]</span>
            </div>
 
            <!-- NAVIGATION ACTIONS (The Cards) -->
@@ -93,6 +103,10 @@ export const HomePage = {
     document.getElementById('open-entry-btn')?.addEventListener('click', renderEntry);
     document.getElementById('open-market-btn')?.addEventListener('click', renderMarket);
     document.getElementById('open-exit-btn')?.addEventListener('click', renderExit);
+    document.getElementById('provoke-event-btn')?.addEventListener('click', () => {
+       StadiumMind.triggerMajorEvent();
+       HomePage.updateUI();
+    });
   },
 
   initInteractions: () => {
@@ -119,14 +133,15 @@ export const HomePage = {
   },
 
   updateUI: () => {
-    const matrix = state.stadiumMatrix;
-    const wallet = document.getElementById('home-wallet');
-    const ticker = document.getElementById('home-broadcast-ticker');
-    const feed = document.getElementById('home-directives-list');
-    const grid = document.getElementById('home-heatmap-grid');
+    const trace = document.getElementById('trace-line');
 
     if (wallet) wallet.innerText = `$${matrix.userSession.walletBalance}`;
     
+    if (trace) {
+       const ms = Date.now().toString().slice(-3);
+       trace.innerText = `CALCULATING SECTOR THERMALS... [SYNC: 99.${ms[0]}%] [LOAD: ${matrix.sectors[0].status}] [ALGO: VECTOR_V4]`;
+    }
+
     if (ticker && matrix.directives[0]) {
        ticker.innerText = matrix.directives[0].text.toUpperCase();
     }
