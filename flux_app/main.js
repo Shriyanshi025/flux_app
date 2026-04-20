@@ -70,23 +70,64 @@ function renderExitModule() {
   ExitPage.render(mountDashboardModule);
 }
 
+/**
+ * NAVIGATOR MODULE (v2.0 - GOOGLE MAPS STYLE)
+ * High-fidelity restoration of floating search bars and interactive category chips.
+ */
 async function renderMapModule() {
-  const { loadGoogleMaps, initDashboardMap } = await import('./src/services/mapService.js');
+  const { loadGoogleMaps, initDashboardMap, searchNearby } = await import('./src/services/mapService.js');
   await loadGoogleMaps();
   
   const content = `
-    <div class="main-feed animated" style="padding-top: 10px; padding-bottom: 100px;">
-      <div id="map-frame-container" style="width: 100%; height: 500px; background: #000; border-radius: 24px; position: relative; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
-         <input id="pac-input" class="controls" type="text" placeholder="SEARCH WORLD GLOBE..." 
-                style="position:absolute; top:20px; left:20px; right:20px; background:rgba(0,0,0,0.8); border:1px solid var(--accent); padding:12px 20px; border-radius:12px; color:#fff; z-index:10; font-family:var(--font-primary); font-size:0.9rem; outline:none; box-shadow:0 10px 30px rgba(0,0,0,0.5);">
-         <div id="map-canvas" style="width: 100%; height: 100%;"></div>
-      </div>
-      <button class="btn-primary" id="confirm-stadium-btn" style="margin-top: 2rem;">LOCK FREQUENCY</button>
+    <div id="navigator-full-screen" class="animated" style="position:relative; width:100%; height:82vh; background:#000; overflow:hidden;">
+        
+        <!-- FLOATING GOOGLE MAPS CONSOLE -->
+        <div id="map-search-console" style="position:absolute; top:15px; left:15px; right:15px; z-index:100;">
+           <div class="glass-search" style="display:flex; align-items:center; background:rgba(0,0,0,0.85); backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.15); border-radius:16px; padding:8px 15px; box-shadow:0 10px 30px rgba(0,0,0,0.5);">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" style="opacity:0.6;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+              <input id="pac-input" type="text" placeholder="Search Google Maps" 
+                     style="background:transparent; border:none; color:#fff; flex:1; padding:10px 15px; outline:none; font-size:0.95rem; font-family:var(--font-primary);">
+              <div style="width:1px; height:24px; background:rgba(255,255,255,0.1); margin:0 10px;"></div>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+           </div>
+           
+           <!-- QUICK CATEGORY CHIPS -->
+           <div class="category-scroller" style="display:flex; overflow-x:auto; gap:10px; margin-top:12px; padding-bottom:5px;">
+              <button class="map-chip" data-category="stadium">🏟️ Stadiums</button>
+              <button class="map-chip" data-category="restaurant">🍔 Food</button>
+              <button class="map-chip" data-category="transit">🚉 Transit</button>
+              <button class="map-chip" data-category="hotel">🏨 Hotels</button>
+              <button class="map-chip" data-category="mall">🛍️ Shopping</button>
+           </div>
+        </div>
+
+        <div id="map-canvas" style="width:100%; height:100%;"></div>
+
+        <!-- ACTION BUTTONS -->
+        <div id="map-actions-layer" style="position:absolute; bottom:100px; left:15px; right:15px; z-index:100;">
+           <button class="btn-primary" id="confirm-stadium-btn" style="box-shadow:0 15px 40px rgba(0,255,102,0.4); font-family:var(--font-logo);">LOCK STADIUM FREQUENCY</button>
+        </div>
     </div>
   `;
   
   mountDashboardModule(content, 1, 'NAVIGATOR', renderEntryModule);
+  
+  // Bind Map Logic
   initDashboardMap('map-canvas', 'pac-input');
+  
+  // Bind Chips
+  document.querySelectorAll('.map-chip').forEach(chip => {
+    chip.addEventListener('click', (e) => {
+      const cat = e.target.getAttribute('data-category');
+      searchNearby(cat);
+    });
+  });
+
+  // BUG FIX: Bind Lock Frequency Button
+  document.getElementById('confirm-stadium-btn')?.addEventListener('click', () => {
+    console.log('[Navigator] Frequency Locked. Returning to entry protocol.');
+    renderEntryModule();
+  });
 }
 
 /**
