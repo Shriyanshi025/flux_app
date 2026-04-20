@@ -3,8 +3,8 @@
  */
 
 const FIREBASE_CONFIG = {
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'flux-fortress-1',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || null,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || null,
 };
 
 /**

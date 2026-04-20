@@ -2,9 +2,8 @@ import { setPinnedLocation, resolveLocationName, calculateDistance } from './loc
 
 const _rawKey = import.meta.env.VITE_GOOGLE_MAPS_KEY;
 export const GOOGLE_MAPS_KEY =
-  _rawKey && _rawKey.trim() !== ''
-    ? _rawKey
-    : 'AIzaSyA3oxIok5adpJPXg2qGBdYIcHWCINyO_dc';
+  _rawKey && _rawKey.trim() !== "" ? _rawKey : null;
+
 
 export function loadGoogleMaps() {
   if (typeof google !== 'undefined') return Promise.resolve(google);
