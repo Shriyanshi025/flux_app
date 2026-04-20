@@ -8,6 +8,8 @@ RUN npm install
 
 # Copy source and build the Vite project
 COPY . .
+ARG VITE_GOOGLE_MAPS_KEY
+ENV VITE_GOOGLE_MAPS_KEY=$VITE_GOOGLE_MAPS_KEY
 RUN npm run build
 
 # --- PRODUCTION STAGE ---

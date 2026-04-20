@@ -1,4 +1,13 @@
 import './style.css'
+import { SystemBrain } from './src/services/SystemBrain.js';
+import { 
+  fetchUserLocation, 
+  setPinnedLocation, 
+  resolveLocationName, 
+  calculateDistance, 
+  getLocationState, 
+  resetLocationState 
+} from './src/services/locationService.js';
 
 let p5Instance = null;
 let bgShouldBeWaking = false;
@@ -23,8 +32,8 @@ let mockEntryState = {
   bookedSlot: null,
   unlockTime: 0,
   isLate: false,
-  timerInterval: null,
-  lockedLocation: null // { name, lat, lng }
+  timerInterval: null
+  // State for pinned venue & distance is now in locationService.js
 };
 
 // --- FLASH MARKET: Simulation State ---
@@ -118,7 +127,7 @@ function logFirebaseEvent(evt, data = {}) {
 logFirebaseEvent('app_session_start', { vertical: 'Smart Infrastructure' });
 
 
-// === PERSISTENCE HELPERS ===
+// === PERSISTENCE HELPERS (Persistence Disabled for Session Consistency) ===
 function saveEntryState() {
   const { timerInterval, ...serializable } = mockEntryState;
   localStorage.setItem('flux_entry_state', JSON.stringify(serializable));
@@ -130,23 +139,16 @@ function loadEntryState() {
     const data = JSON.parse(saved);
     mockEntryState = { ...mockEntryState, ...data };
   }
-  
-  // Also check for legacy or individual lock key
-  const legacyLock = localStorage.getItem('flux_target_stadium');
-  if (legacyLock && !mockEntryState.lockedLocation) {
-    mockEntryState.lockedLocation = { name: legacyLock, lat: 40.7128, lng: -74.0060 }; // Defaulting for legacy
-  }
 }
 
 
-// === UTILITY: Haversine distance in km ===
-function haversineKm(lat1, lon1, lat2, lon2) {
-  const R = 6371;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-}
+
+// window.onbeforeunload ensures a clean slate on every reload
+window.onbeforeunload = () => {
+    sessionStorage.clear();
+    localStorage.clear();
+    resetLocationState();
+};
 
 // === QR CODE SVG GENERATOR ===
 // Produces a visually authentic QR code SVG with randomised data modules.
@@ -349,14 +351,16 @@ function renderAuthPage() {
 
 
 function computeNearestStadium(lat, lng) {
-  // Haversine — finds closest stadium from array
+  // Use consistent Haversine from array
   let nearest = STADIUMS[0];
   let minDist = Infinity;
+  const R = 6371;
   STADIUMS.forEach(s => {
     const dLat = (s.lat - lat) * Math.PI / 180;
     const dLng = (s.lng - lng) * Math.PI / 180;
     const a = Math.sin(dLat/2)**2 + Math.cos(lat * Math.PI/180) * Math.cos(s.lat * Math.PI/180) * Math.sin(dLng/2)**2;
-    const dist = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const dist = R * c;
     if (dist < minDist) { minDist = dist; nearest = s; }
   });
   return nearest;
@@ -375,25 +379,17 @@ function bindEvents() {
   });
 
   const fetchBtn = document.getElementById('fetch-location-btn');
-  if (fetchBtn) fetchBtn.addEventListener('click', () => {
-    if (navigator.geolocation) {
-      fetchBtn.innerHTML = '...';
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const stadium = computeNearestStadium(pos.coords.latitude, pos.coords.longitude);
-          document.getElementById('reg-location').value = `${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`;
-          document.getElementById('reg-stadium').value = stadium.name;
-          fetchBtn.innerHTML = 'Done ✓';
-        },
-        () => {
-          document.getElementById('reg-location').value = '40.7128, -74.0060';
-          document.getElementById('reg-stadium').value = 'Sector 4 Arena (New York)';
-          fetchBtn.innerHTML = 'Done ✓';
-        }
-      );
-    } else {
-      document.getElementById('reg-location').value = '40.7128, -74.0060';
-      document.getElementById('reg-stadium').value = 'Sector 4 Arena (New York)';
+  if (fetchBtn) fetchBtn.addEventListener('click', async () => {
+    fetchBtn.innerHTML = '...';
+    try {
+      const loc = await fetchUserLocation();
+      const stadium = computeNearestStadium(loc.lat, loc.lng);
+      document.getElementById('reg-location').value = `${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}`;
+      document.getElementById('reg-stadium').value = stadium.name;
+      fetchBtn.innerHTML = 'Done ✓';
+    } catch (err) {
+      document.getElementById('reg-location').value = '51.5074, -0.1278';
+      document.getElementById('reg-stadium').value = 'O2 London';
       fetchBtn.innerHTML = 'Done ✓';
     }
   });
@@ -673,12 +669,42 @@ function renderFlashMarket() {
   if (!authGuard()) return;
 
   const content = `
-    <div class="market-ticker" id="market-ticker">
+    <div class="market-ticker top-ribbon" id="market-ticker">
       <div class="ticker-tape" id="ticker-tape">
         <!-- Items injected by simulation loop (doubled for seamless loop) -->
       </div>
     </div>
-    <div id="market-container" style="width:100%;">
+    <div id="market-container" class="market-section" style="width:100%;">
+      <!-- MARKET INTELLIGENCE CARD -->
+      <div class="promo-card market-intelligence-card" style="margin-bottom: 2rem; border-color: #ff3c3c; background: linear-gradient(135deg, rgba(255, 60, 60, 0.1) 0%, rgba(10, 10, 10, 0.4) 100%);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+          <span style="color: #ff3c3c; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.15em; text-transform: uppercase;">Market Intelligence</span>
+          <div style="text-align: right;">
+            <div style="color: rgba(255,255,255,0.4); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em;">Flow Score</div>
+            <div style="color: #ff3c3c; font-size: 1.8rem; font-weight: 900;">85</div>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+          <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+            <p style="color: rgba(255,255,255,0.4); font-size: 0.65rem; text-transform: uppercase; margin-bottom: 4px;">Stall A (Burger)</p>
+            <p style="color: #fff; font-weight: 700; margin: 0;">20 min <span style="color: #ff3c3c; font-size: 0.7rem; font-weight: 400;">⚠️ PEAK</span></p>
+          </div>
+          <div style="background: rgba(0, 255, 102, 0.05); padding: 1rem; border-radius: 12px; border: 1px solid rgba(0, 255, 102, 0.2);">
+            <p style="color: rgba(0, 255, 102, 0.6); font-size: 0.65rem; text-transform: uppercase; margin-bottom: 4px;">Stall B (Taco)</p>
+            <p style="color: #00ff66; font-weight: 700; margin: 0;">3 min <span style="background: #00ff66; color: #000; font-size: 0.6rem; padding: 2px 4px; border-radius: 4px; margin-left: 4px;">40% OFF</span></p>
+          </div>
+        </div>
+
+        <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1rem;">
+          <p style="color: #ff3c3c; font-weight: 800; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">High Congestion Detected</p>
+          <div style="display: flex; align-items: center; gap: 8px; color: #fff; font-size: 0.95rem;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00ff66" stroke-width="3"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>
+            <span>Action: <b>Redirect to Taco Stall</b></span>
+          </div>
+        </div>
+      </div>
+
       <div id="market-feed" class="market-feed">
         ${renderHeatmap()}
       </div>
@@ -1342,13 +1368,41 @@ function renderHelpPage() {
 // ============================================================
 // ENTRY MODULE — GREEN CARPET
 // ============================================================
+function renderSystemBrainWidget(data) {
+  const status = SystemBrain.getProximityStatus(data.distance);
+  const isNear = SystemBrain.isWithinEntryRange(data.distance);
+  const color = isNear ? '#00ff66' : '#ffaa00';
+  
+  return `
+    <div class="promo-card" style="border-color: ${color}; background: rgba(0,255,102,0.05); padding: 1.2rem; margin-top: 2rem; position: relative; overflow: hidden; animation: slideIn 0.4s ease-out;">
+       <div style="position: absolute; right: -10px; top: -10px; opacity: 0.1;">
+          <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="1"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/><path d="M12 6v6l4 2"/></svg>
+       </div>
+       <p style="color: ${color}; font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.15em; margin: 0 0 8px 0;">Intelligence Module Output</p>
+       <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+          <div>
+             <h3 style="color: #fff; margin: 0; font-size: 1rem; font-weight: 700;">${status}</h3>
+             <p style="color: rgba(255,255,255,0.4); font-size: 0.75rem; margin: 4px 0 0 0;">${isNear ? 'Physical frequency locked. QR authorized.' : 'Frequency misaligned. Proceed to target.'}</p>
+          </div>
+          <div style="text-align: right;">
+             <p style="color: ${color}; font-size: 1.2rem; font-weight: 900; margin: 0;">${data.distance !== null ? data.distance + ' KM' : '--'}</p>
+             <p style="color: rgba(255,255,255,0.3); font-size: 0.6rem; text-transform: uppercase;">Range</p>
+          </div>
+       </div>
+    </div>
+  `;
+}
+
+// ============================================================
+// ENTRY MODULE
+// ============================================================
 function renderEntryModule() {
   if (!authGuard()) return;
 
   const content = `
     <div id="entry-container" style="width: 100%;">
       <div id="entry-view" style="width: 100%; display: flex; flex-direction: column; align-items: stretch;">
-         <!-- Content injected here by sub-renderers -->
+         <!-- Content injected here -->
       </div>
     </div>
   `;
@@ -1356,26 +1410,82 @@ function renderEntryModule() {
   mountDashboardModule(content, 1, 'ENTRY');
   
   const entryFeed = document.getElementById('entry-view');
+  
+  const { selectedLocation, selectedLocationName, distance } = getLocationState();
 
   if (!mockEntryState.bookedSlot) {
-    // Show nudge if Guest
-    const isGuest = localStorage.getItem('flux_user') === 'GUEST';
-    if (isGuest) {
-       const nudge = document.createElement('div');
-       nudge.style = "background: rgba(0, 255, 204, 0.1); border: 1px solid rgba(0, 255, 204, 0.3); padding: 0.8rem; border-radius: 12px; margin-bottom: 2.5rem; text-align: center; color: #00ffcc; font-size: 0.8rem; font-weight: 500; font-family: var(--font-primary);";
-       nudge.innerHTML = `⚡ Register your <b style="color:#fff;">Fortress ID</b> to earn and save 500 Entry Points!`;
-       entryFeed.prepend(nudge);
-    }
     renderTimeSlots(entryFeed);
-  } else {
-    renderLockout(entryFeed);
+    
+    if (isGuest()) {
+       const warning = document.createElement('div');
+       warning.className = 'guest-warning-banner';
+       warning.innerHTML = `You are currently using guest access. Arrival slot booking and QR entry are available only for registered users.`;
+       entryFeed.prepend(warning);
+    }
+    return;
   }
+
+  // If slot is booked, show the proximity locking view
+  entryFeed.innerHTML = `
+    <div id="entry-feed" style="width: 100%;">
+      <h2 style="color: #00ff66; margin-top: 2rem; margin-bottom: 1.5rem; text-align: center;">Choose Your Window</h2>
+      
+      <div class="promo-card" id="maps-engine-card" 
+           style="border-color: #00ff66; background: rgba(0, 255, 102, 0.05); padding: 2rem; margin-bottom: 2.5rem; transition: all 0.3s ease; cursor: pointer; position: relative; overflow: hidden;">
+            
+            ${selectedLocation ? `
+               <!-- LOCKED STATE -->
+               <div style="position: absolute; top:0; right: 0; background: #00ff66; color: #000; padding: 4px 12px; font-size: 0.65rem; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase; border-bottom-left-radius: 12px; z-index: 10;">
+                 LOCKED
+               </div>
+               
+               <p style="color: #00ff66; font-size: 0.8rem; text-transform: uppercase; font-weight: 700; margin-bottom: 12px; letter-spacing: 0.05em;">Selected Venue</p>
+               <h2 style="font-size: 1.1rem; margin: 0 0 4px 0; color: #fff; font-weight: 800;">${selectedLocationName || 'Pinned Location'}</h2>
+               <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.5rem;">Proximity Protocol Synced</p>
+               
+               <div id="google-maps-engine" style="width: 100%; height: 160px; background: #080808; border-radius: 12px; border: 1px solid rgba(0, 255, 102, 0.2); position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; background-image: radial-gradient(circle at 50% 50%, rgba(0, 255, 102, 0.1) 0%, transparent 70%);">
+                  <div style="text-align: center; z-index: 5;">
+                     <div style="font-size: 1.5rem; margin-bottom: 8px;">📍</div>
+                     <p style="margin: 0; font-size: 0.85rem; color: #00ff66; font-weight: 800;">
+                        ${distance !== null ? `${distance} km` : 'Detecting...'}
+                     </p>
+                     <p style="margin: 4px 0 0 0; font-size: 0.65rem; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.1em;">Range</p>
+                  </div>
+                  
+                  <button id="resync-maps-btn" style="position: absolute; bottom: 12px; font-size: 0.7rem; background: rgba(0,255,102,0.1); border: 1px solid rgba(0,255,102,0.3); color: #00ff66; padding: 4px 12px; border-radius: 20px; cursor: pointer; backdrop-filter: blur(5px);">
+                    Edit / Switch Location
+                  </button>
+               </div>
+            ` : `
+               <!-- UNLOCKED STATE -->
+               <p style="color: #00ff66; font-weight: 700; margin-bottom: 8px; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.1em;">Live Navigation Mode</p>
+               <p style="font-size: 0.9rem; line-height: 1.6; margin-bottom: 1.5rem;">Sync with <strong style="color:#fff;">Google Maps</strong> to initialize verification.</p>
+               <div style="width: 100%; height: 120px; background: #080808; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center;">
+                  <button class="btn-primary" style="background: var(--accent); color:#000; padding: 0.5rem 1.5rem; border-radius:30px; font-size: 0.8rem; font-weight: 800;">LAUNCH NAVIGATOR</button>
+               </div>
+            `}
+      </div>
+
+      <div id="slots-section-view"></div>
+    </div>
+  `;
+
+  // Explicit Listeners
+  document.getElementById('maps-engine-card')?.addEventListener('click', renderMapModule);
+  document.getElementById('resync-maps-btn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    renderMapModule();
+  });
+
+  const slotsContainer = document.getElementById('slots-section-view');
+  if (slotsContainer) renderTimeSlots(slotsContainer);
+
+  if (isGuest()) bindGuestUpgradeBtn();
 }
 
 function renderTimeSlots(container) {
   // Show all slots, but handle FULL ones visually
   const availableKeys = Object.keys(SLOT_CAPACITY);
-
 
   const slotCards = availableKeys.map(key => {
     const cap = SLOT_CAPACITY[key];
@@ -1383,54 +1493,60 @@ function renderTimeSlots(container) {
     const remaining = cap.max - cap.booked;
     const almostFull = pct >= 80;
 
+    const isGuestUser = isGuest();
     const isFull = cap.booked >= cap.max;
     
+    // Unified Restricted Style (Inline Override)
+    const restrictedStyle = "opacity: 0.45; filter: grayscale(100%); pointer-events: none; cursor: not-allowed; box-shadow: none; transform: none; border-color: rgba(255,255,255,0.1) !important;";
+    const baseStyle = `padding: 1rem; --card-theme: ${cap.isPeak ? '#ffaa00' : '#00ff66'}; --card-bg: ${cap.isPeak ? 'rgba(40,25,0,0.4)' : 'rgba(0,26,10,0.4)'};`;
+    
     return `
-      <div class="promo-card slot-card ${isFull ? 'slot-full' : ''}" data-time="${key}"
-           style="padding: 1rem; --card-theme: ${cap.isPeak ? '#ffaa00' : '#00ff66'}; --card-bg: ${cap.isPeak ? 'rgba(40,25,0,0.4)' : 'rgba(0,26,10,0.4)'}; 
-           ${isFull ? 'opacity: 0.4; filter: grayscale(1); cursor: not-allowed; pointer-events: none;' : ''}">
+      <div class="promo-card slot-card ${(!isGuestUser && isFull) ? 'slot-full' : ''}" data-time="${key}"
+           style="${isGuestUser ? restrictedStyle : baseStyle}">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px;">
-          <p style="color: ${cap.isPeak ? '#ffaa00' : '#00ff66'}; margin: 0; font-weight: 700;">${cap.label}</p>
-          <span style="font-size:0.7rem; color: ${isFull ? '#888' : (almostFull ? '#ff6b35' : 'var(--text-muted)')};">${isFull ? 'FULL' : `${remaining} left`}</span>
+          <p style="color: ${isGuestUser ? '#aaa' : (cap.isPeak ? '#ffaa00' : '#00ff66')}; margin: 0; font-weight: 700;">${cap.label}</p>
+          <span style="font-size:0.7rem; color: ${(isGuestUser || isFull) ? '#888' : (almostFull ? '#ff6b35' : 'var(--text-muted)')};">${isFull ? 'FULL' : `${remaining} left`}</span>
         </div>
         <p style="font-size: 0.78rem; margin: 3px 0 8px 0; color: var(--text-muted);">${cap.points > 0 ? `+${cap.points} FLUX Points 🎖️` : 'Standard Entry'}</p>
         <!-- Capacity bar -->
         <div style="background: rgba(255,255,255,0.08); border-radius: 4px; height: 4px; margin-bottom: 10px; overflow: hidden;">
-          <div style="height:100%; width:${pct}%; background: ${isFull ? '#444' : (almostFull ? '#ff6b35' : (cap.isPeak ? '#ffaa00' : '#00ff66'))}; border-radius: 4px; transition: width 0.5s;"></div>
+          <div style="height:100%; width:${pct}%; background: ${(isGuestUser || isFull) ? '#444' : (almostFull ? '#ff6b35' : (cap.isPeak ? '#ffaa00' : '#00ff66'))}; border-radius: 4px; transition: width 0.5s;"></div>
         </div>
-        <button class="btn-primary btn-book" ${isFull ? 'disabled' : ''}
-                style="padding: 0.5rem 1rem; font-size: 0.8rem; ${isFull ? 'background: #222; border-color: #333; color: #666;' : (cap.isPeak ? 'background:#ffaa00; border-color:#ffaa00; color:black;' : '')}">
+        <button class="btn-primary btn-book" ${(isGuestUser || isFull) ? 'disabled' : ''}
+                style="padding: 0.5rem 1rem; font-size: 0.8rem; ${(isGuestUser || isFull) ? 'background: #222; border-color: #333; color: #666;' : (cap.isPeak ? 'background:#ffaa00; border-color:#ffaa00; color:black;' : '')}">
           ${isFull ? 'Capacity Full' : 'Book Arrival Window'}
         </button>
       </div>`;
-
   }).join('');
 
+  const { selectedLocation, selectedLocationName, distance } = getLocationState();
+  
   container.innerHTML = `
-      <div id="entry-feed" style="width: 100%;">
-        <h2 style="color: #00ff66; margin-top: 2rem; margin-bottom: 1.5rem; text-align: center;">Choose Your Window</h2>
-        
-        <div class="promo-card" id="maps-engine-card" 
-             style="border-color: #00ff66; background: rgba(0, 255, 102, 0.05); padding: 2rem; margin-bottom: 2.5rem; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; position: relative; overflow: hidden;">
+    <div id="entry-feed" style="width: 100%;">
+      <h2 style="color: #00ff66; margin-top: 2rem; margin-bottom: 1.5rem; text-align: center;">Choose Your Window</h2>
+      
+      <div class="promo-card" id="maps-engine-card" 
+           style="border-color: #00ff66; background: rgba(0, 255, 102, 0.05); padding: 2rem; margin-bottom: 2.5rem; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; position: relative; overflow: hidden;">
             
-            ${mockEntryState.lockedLocation ? `
+            ${selectedLocation ? `
                <!-- LOCKED STATE -->
                <div style="position: absolute; top:0; right: 0; background: #00ff66; color: #000; padding: 4px 12px; font-size: 0.65rem; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase; border-bottom-left-radius: 12px; z-index: 10;">
                  LOCKED
                </div>
-
-               <p style="color: #00ff66; font-weight: 700; margin-bottom: 8px; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.1em; display: flex; align-items: center; gap: 8px;">
-                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                 Location Locked
-               </p>
-               <h3 style="color: #fff; margin: 0 0 4px 0; font-size: 1.2rem;">${mockEntryState.lockedLocation.name}</h3>
-               <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1.5rem;">This is your selected destination. Proximity Protocol synced.</p>
+               
+               <p style="color: #00ff66; font-size: 0.8rem; text-transform: uppercase; font-weight: 700; margin-bottom: 12px; letter-spacing: 0.05em;">Selected Venue</p>
+               <h2 style="font-size: 1.1rem; margin: 0 0 4px 0; color: #fff; font-weight: 800;">${selectedLocationName || 'Pinned Location'}</h2>
+               <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.5rem;">Proximity Protocol Synced</p>
                
                <div id="google-maps-engine" style="width: 100%; height: 160px; background: #080808; border-radius: 12px; border: 1px solid rgba(0, 255, 102, 0.2); position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; background-image: radial-gradient(circle at 50% 50%, rgba(0, 255, 102, 0.1) 0%, transparent 70%);">
                   <div style="text-align: center; z-index: 5;">
                      <div style="font-size: 1.5rem; margin-bottom: 8px;">📍</div>
-                     <p style="margin: 0; font-size: 0.75rem; color: #fff; font-weight: 600;">${mockEntryState.lockedLocation.lat.toFixed(4)}, ${mockEntryState.lockedLocation.lng.toFixed(4)}</p>
-                     <p style="margin: 4px 0 0 0; font-size: 0.65rem; color: #00ff66; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.8;">Frequency Stable</p>
+                     <p style="margin: 0; font-size: 0.85rem; color: #00ff66; font-weight: 800;">
+                        ${distance !== null 
+                          ? `${distance} km` 
+                          : 'Detecting Location...'}
+                     </p>
+                     <p style="margin: 4px 0 0 0; font-size: 0.65rem; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.1em;">Current Proximity</p>
                   </div>
                   
                   <button id="resync-maps-btn" style="position: absolute; bottom: 12px; font-size: 0.7rem; background: rgba(0,255,102,0.1); border: 1px solid rgba(0,255,102,0.3); color: #00ff66; padding: 4px 12px; border-radius: 20px; cursor: pointer; backdrop-filter: blur(5px); transition: all 0.2s;">
@@ -1448,18 +1564,12 @@ function renderTimeSlots(container) {
                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#00ff66" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
                        <p style="margin: 5px 0 0 0; font-size: 0.7rem; color: #00ff66; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700;">Click to Launch Maps</p>
                     </div>
-                    <div style="position: absolute; bottom: 8px; right: 8px; opacity: 0.6;">
-                       <img src="https://www.gstatic.com/images/branding/googlelogo/2x/googlelogo_light_color_92x30dp.png" alt="Google" style="height: 12px;">
-                    </div>
-               </div>
+                </div>
             `}
         </div>
 
-        <div class="entry-grid" style="display: grid; grid-template-columns: 1fr; gap: var(--global-gap);">
-          ${isGuest()
-            ? guestUpgradeCard('Slot Booking &amp; QR Access — Registered Only')
-            : slotCards
-          }
+        <div class="entry-grid slot-section" style="display: grid; grid-template-columns: 1fr; gap: var(--global-gap);">
+          ${slotCards}
         </div>
       </div>
   `;
@@ -1497,12 +1607,25 @@ function renderTimeSlots(container) {
 }
 
 function renderLockout(container) {
+  // Guard: if no slot booked (e.g. stale state cleared), send back to slots
+  if (!mockEntryState.bookedSlot) {
+    container.innerHTML = `
+      <div class="lockout-screen animated" style="text-align:center; padding:2rem;">
+        <p style="color:#ffaa00; font-size:1.1rem; font-weight:700; margin-bottom:1rem;">⚠️ No Slot Booked</p>
+        <p style="color:var(--text-muted); font-size:0.9rem;">Please book your arrival slot to proceed.</p>
+        <button class="btn-primary" id="go-book-btn" style="margin-top:1.5rem; background:var(--accent); color:#000;">Book Arrival Slot</button>
+      </div>`;
+    document.getElementById('go-book-btn')?.addEventListener('click', renderEntryModule);
+    return;
+  }
+
   container.innerHTML = `
-     <div class="lockout-screen animated" style="width: 100%; text-align: center;">
-        <!-- High-Fidelity Heads Up Notice -->
+      <div class="lockout-screen animated" style="width: 100%; text-align: center;">
+        ${mockEntryState.bookedSlot ? `
         <div style="width: 100%; background: #ffaa00; color: #000; padding: 0.8rem; border-radius: 12px; margin-bottom: 2rem; text-align: center; font-weight: 700; font-size: 0.85rem; box-shadow: 0 10px 20px rgba(0,0,0,0.3);">
            ⚠️ HEADS UP: Please reach the required proximity range for enabling the QR code otherwise QR won't be enabled.
         </div>
+        ` : ''}
 
         <p style="color: rgba(255,255,255,0.25); text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.2em; margin-bottom: 0.5rem;">Secure Session Active</p>
         <h2 style="color: #fff; margin: 0 0 2rem 0; font-size: 1.2rem; font-weight: 300;">PROXIMITY SCAN FOR <span style="color: var(--accent); font-weight: 700;">${(localStorage.getItem('flux_user') || 'GUEST').toUpperCase()}</span></h2>
@@ -1555,11 +1678,28 @@ function renderLockout(container) {
   }, 50);
 }function renderActivationNotice(container) {
   let autoTimer = null;
+
+  // Guest block: cannot verify QR
+  if (isGuest()) {
+    container.innerHTML = `
+      <div class="lockout-screen animated" style="text-align:center; padding:2rem;">
+        <p style="color:#ffaa00; font-size:1rem; font-weight:700; margin-bottom:1rem;">🔒 QR Access — Registered Only</p>
+        <p style="color:var(--text-muted); font-size:0.88rem; line-height:1.6; margin-bottom:1.5rem;">
+          Guest users cannot access QR entry.<br>Please complete booking and verification.
+        </p>
+        ${guestUpgradeCard('Fast Lane QR Access')}
+      </div>`;
+    bindGuestUpgradeBtn();
+    return;
+  }
+
   const triggerVerification = () => {
     if (autoTimer) clearTimeout(autoTimer);
     checkGeofenceAndUnlock(container);
   };
 
+  const { distance } = getLocationState();
+  
   container.innerHTML = `
     <div class="lockout-screen animated">
       <!-- Heads Up Notice Bar -->
@@ -1579,10 +1719,22 @@ function renderLockout(container) {
         </p>
       </div>
 
+      <!-- Display Distance Data -->
+      ${renderSystemBrainWidget({ distance })}
+
       <div style="margin-top: 2rem; width: 100%;">
-        <button class="btn-primary" id="start-geo-verification" style="background: #ffaa00; color: black; border-color: #ffaa00;">
-          Verify & Unlock QR
-        </button>
+        ${isGuest() ? `
+          <div style="padding: 1rem; background: rgba(255,0,60,0.1); border: 1px solid #ff003c40; border-radius: 12px; text-align: center; color: #ff003c; font-weight: 600; font-size: 0.85rem;">
+            Guest users cannot access QR entry. Please complete booking and verification.
+          </div>
+          <button class="btn-primary" disabled style="background: #444; color: #888; border-color: #555; margin-top: 1rem; opacity: 0.5;">
+            Verify &amp; Unlock QR
+          </button>
+        ` : `
+          <button class="btn-primary" id="start-geo-verification" style="background: #ffaa00; color: black; border-color: #ffaa00; font-weight: 800; text-transform: uppercase;">
+            Verify &amp; Unlock QR
+          </button>
+        `}
       </div>
     </div>
   `;
@@ -1593,34 +1745,71 @@ function renderLockout(container) {
   autoTimer = setTimeout(triggerVerification, 2500);
 }
 
-function checkGeofenceAndUnlock(container) {
-  const stadium = mockEntryState.lockedLocation || STADIUMS[0];
-  // Start with a detecting state for realism
-  let geoResult = { mode: 'demo', dist: '...', stadium: stadium.name };
+async function checkGeofenceAndUnlock(container) {
+  const { selectedLocation, selectedLocationName } = getLocationState();
+  let geoResult = { mode: 'detecting', distKm: null, stadium: selectedLocationName || 'Target Stadium' };
 
-  // Trigger real location check (in bg) to update distance label if possible
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition((pos) => {
-      const dist = haversineKm(pos.coords.latitude, pos.coords.longitude, stadium.lat, stadium.lng);
-      geoResult.dist = dist.toFixed(1);
-      if (dist <= 1.0) geoResult.mode = 'real';
-      
-      // Update label live
-      const distLabel = document.getElementById('proximity-dist-label');
-      if (distLabel) {
-        distLabel.innerHTML = `📍 Distance: <span style="color:#fff;">${geoResult.dist} km</span> from <b style="text-decoration: underline;">${stadium.name}</b>`;
-      }
-    }, (err) => {
-       console.warn('GPS access denied or timed out.');
-       const distLabel = document.getElementById('proximity-dist-label');
-       if (distLabel) {
-         distLabel.innerHTML = `⚠️ <span style="color:#ffaa00;">Enable location access</span> to calculate distance and arrival time to <b style="text-decoration: underline;">${stadium.name}</b>`;
-       }
-    }, { timeout: 5000, enableHighAccuracy: true });
+  // PHASE 0: Check Cache for Instant Display (Fast Sync)
+  const { userLocation, distance } = getLocationState();
+  if (userLocation && distance !== null) {
+     geoResult.distKm = parseFloat(distance);
+     geoResult.mode = (geoResult.distKm <= 2.0) ? 'near' : 'far';
   }
-
-  // Instant render
+  
+  // Show initial (cached or detecting) state
   renderActivePass(container, geoResult);
+
+  // PHASE 1: Background Fetch (Parallel)
+  try {
+    await fetchUserLocation();
+    const dist = calculateDistance();
+    
+    geoResult.distKm = dist ? parseFloat(dist) : null;
+    geoResult.mode = (geoResult.distKm !== null && geoResult.distKm <= 2.0) ? 'near' : 'far';
+    
+    // Update labels live
+    const distLabel = document.getElementById('proximity-dist-label');
+    if (distLabel) {
+      distLabel.innerHTML = `📍 Distance: <span style="color:#fff;">${dist} km</span> from <b style="text-decoration:underline;">${selectedLocationName}</b>`;
+    }
+    const securityDistVal = document.getElementById('security-dist-val');
+    if (securityDistVal) securityDistVal.textContent = `${dist} km`;
+
+    const securityRangeMsg = document.getElementById('security-range-msg');
+    if (securityRangeMsg) {
+      securityRangeMsg.style.display = 'block';
+      if (geoResult.distKm > 2.0) {
+        securityRangeMsg.style.color = '#ff3c3c';
+        securityRangeMsg.textContent = 'QR cannot be activated. You are outside valid range.';
+      } else {
+        securityRangeMsg.style.color = '#00ff66';
+        securityRangeMsg.textContent = 'Proximity verified. QR authorization granted.';
+      }
+    }
+
+    if (geoResult.distKm > 2.0) {
+      const qrZone = document.getElementById('qr-zone');
+      if (qrZone) {
+        qrZone.innerHTML = `
+          <div style="padding:1.5rem; background:rgba(255,0,60,0.07); border:1px solid #ff003c40; border-radius:16px; text-align:center; margin-top:1rem;">
+            <p style="color:#ff003c; font-size:1.1rem; font-weight:800; margin:0 0 0.5rem;">🚫 Entry Locked</p>
+            <p style="color:rgba(255,255,255,0.7); font-size:0.88rem; margin:0 0 0.8rem;">You are <b>${dist} km</b> away from ${selectedLocationName}</p>
+            <p style="color:#ffaa00; font-size:0.82rem; margin:0;">Move within 2 km to activate your QR pass.</p>
+          </div>`;
+      }
+    } else {
+      renderActivePass(container, geoResult);
+    }
+  } catch (err) {
+    console.warn('GPS access denied or timed out:', err);
+    const distLabel = document.getElementById('proximity-dist-label');
+    if (distLabel) {
+      distLabel.innerHTML = `⚠️ <span style="color:#ff3c3c;">Location access denied</span>. Distance cannot be calculated to <b style="text-decoration:underline;">${selectedLocationName}</b>`;
+    }
+    geoResult.mode = 'denied';
+    geoResult.distKm = null;
+    renderActivePass(container, geoResult);
+  }
 }
 
 function renderActivePass(container, geoContext) {
@@ -1629,88 +1818,143 @@ function renderActivePass(container, geoContext) {
   let validityInterval = null;
   let qrSeed = Date.now();
 
-  const isDemo = geoContext.mode === 'demo';
   const slotCode = (mockEntryState.bookedSlot || 'PASS').replace(/[^A-Z0-9]/gi, '').toUpperCase().substring(0, 8);
   const uniqueId = Math.floor(Math.random() * 90000 + 10000);
+  const stadium = geoContext.stadium || (mockEntryState.lockedLocation?.name) || 'Target Stadium';
+
+  // ── Conditions for showing live QR ──────────────────────────────
+  const hasBookedSlot = !!mockEntryState.bookedSlot;
+  const distKm = geoContext.distKm;  // null = still detecting
+  const isNear = geoContext.mode === 'near'; // NO DEMO FALLBACK
+  const canSeeQR = hasBookedSlot && !isGuest() && isNear;
+
+  // Clean Distance Display
+  const distDisplay = (distKm !== null)
+    ? `${parseFloat(distKm).toFixed(2)} KM`
+    : "Detecting Frequency...";
+
+  // QR zone HTML based on conditions
+  let qrZoneHTML;
+  if (!hasBookedSlot) {
+    qrZoneHTML = `<div style="padding:1.5rem; text-align:center;"><p style="color:#ffaa00; font-weight:700;">⚠️ Please book your arrival slot first</p></div>`;
+  } else if (isGuest()) {
+    qrZoneHTML = guestUpgradeCard('QR Entry — Registered Only');
+  } else if (!isNear && distKm !== null) {
+    qrZoneHTML = `
+      <div style="padding:2rem; background:rgba(255,0,60,0.07); border:1px solid #ff003c40; border-radius:24px; text-align:center;">
+        <p style="color:#ff003c; font-size:1.3rem; font-weight:900; margin:0 0 0.8rem;">🚫 Entry Locked</p>
+        <p style="color:rgba(255,255,255,0.8); font-size:1rem; line-height:1.5;">You are <b style="color:#fff; font-size:1.2rem;">${distKm.toFixed(2)} km</b> away from the stadium.<br>
+        <span style="color:#ffaa00; font-size:0.85rem;">Move within 2 km to activate your QR pass.</span></p>
+      </div>`;
+  } else {
+    // Detecting or near — show QR placeholder (fills in via injectQR)
+    qrZoneHTML = `
+      <div class="secure-qr-box active" id="active-qr-box"
+           style="width: 80vw; max-width: 320px; aspect-ratio: 1/1; height: auto; border-radius: 24px; padding: 1.5rem; position: relative; margin: 0 auto; background: rgba(0, 255, 102, 0.03); border: 1px solid rgba(0, 255, 102, 0.3); box-shadow: 0 0 30px rgba(0,255,102,0.1);">
+        <div class="live-qr" id="live-qr-pattern" style="width: 100%; height: 100%;"></div>
+        <div class="scanline"></div>
+      </div>
+      <p style="color:rgba(255,255,255,0.4); font-size:0.75rem; font-family:monospace; letter-spacing:0.22em; margin-top:2.5rem;">FLUX·${slotCode}·${uniqueId}</p>
+      <p style="color: #00ff66; font-size: 0.85rem; margin: 10px 0; font-weight: 500;" id="qr-refresh-label">Refreshing in 3s</p>
+      <div style="margin: 0 auto; margin-top:1.5rem; padding:0.6rem 2.5rem; border-radius:30px; background:rgba(0,255,102,0.1); border:1px solid rgba(0,255,102,0.4); display: inline-block;">
+        <p style="color:#00ff66; font-size:1.1rem; margin:0; font-weight:800;">Valid for: <span id="validity-timer">01:00</span></p>
+      </div>`;
+  }
+
+  // --- PORTED SYSTEM BRAIN DATA LOGIC ---
+  const isOutsideLimit = geoContext.distKm !== null ? geoContext.distKm > 2.0 : false;
+  
+  const brainData = { 
+    zone: geoContext.mode === 'detecting' ? "Detecting" : (geoContext.mode === 'far' ? "Approaching" : "Sector A"), 
+    crowdLevel: geoContext.mode === 'far' ? 20 : 30, 
+    waitTime: geoContext.mode === 'far' ? 0 : 5,
+    distance: geoContext.distKm // SINGLE SOURCE (Already Km)
+  };
 
   container.innerHTML = `
     <div class="lockout-screen animated">
-      <!-- Success Status Header (Pixel-perfect mirror of the Verification Bar) -->
-      <div style="width: 100%; background: #00ff66; color: #000; padding: 0.8rem; border-radius: 12px; margin-bottom: 2rem; text-align: center; font-weight: 700; font-size: 0.85rem; box-shadow: 0 10px 20px rgba(0,0,0,0.3);">
-         ⚡ FAST LANE ACTIVE: Your secure entry key is verified.
+      <div style="width: 100%; background: ${canSeeQR ? '#00ff66' : '#ffaa00'}; color: #000; padding: 0.8rem; border-radius: 12px; margin-bottom: 2rem; text-align: center; font-weight: 700; font-size: 0.85rem; box-shadow: 0 10px 20px rgba(0,0,0,0.3);">
+         ${canSeeQR ? '⚡ FAST LANE ACTIVE: Your secure entry key is verified.' : '⚠️ Move closer to the venue to unlock your entry pass'}
       </div>
 
       <p style="color: rgba(255,255,255,0.25); text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.2em; margin-bottom: 0.5rem;">Identity Match Confirmed</p>
-      <h2 style="color: #fff; margin: 0 0 2.5rem 0; font-size: 1.2rem; font-weight: 300;">AUTHENTICATED PASS FOR <span style="color: #00ff66; font-weight: 700;">${(localStorage.getItem('flux_user') || 'GUEST').toUpperCase()}</span></h2>
+      <h2 style="color: #fff; margin: 0 0 2.5rem 0; font-size: 1.2rem; font-weight: 300;">AUTHENTICATED PASS FOR <span style="color: ${canSeeQR ? '#00ff66' : 'var(--accent)'}; font-weight: 700;">${(localStorage.getItem('flux_user') || 'GUEST').toUpperCase()}</span></h2>
 
+      <!-- ENTRY DECISION LOGIC DISPLAY -->
+      <!-- Component handles its own logic now (Step 8) -->
 
-      <div class="qr-payload-container" style="width: 100%;">
-        <!-- Centered QR Box -->
-        <div class="secure-qr-box active" id="active-qr-box"
-             style="width: 80vw; max-width: 320px; aspect-ratio: 1/1; height: auto; border-radius: 24px; padding: 1.5rem; position: relative; margin: 0 auto; background: rgba(0, 255, 102, 0.03); border: 1px solid rgba(0, 255, 102, 0.3); box-shadow: 0 0 30px rgba(0,255,102,0.1);">
-          <div class="live-qr" id="live-qr-pattern" style="width: 100%; height: 100%;"></div>
-          <div class="scanline"></div>
-        </div>
-        
-        <p style="color:rgba(255,255,255,0.4); font-size:0.75rem; font-family:monospace; letter-spacing:0.22em; margin-top:2.5rem;">FLUX·${slotCode}·${uniqueId}</p>
-        <p style="color: #00ff66; font-size: 0.85rem; margin: 10px 0; font-weight: 500;" id="qr-refresh-label">Refreshing in 3s</p>
-
-        <!-- Dynamic Validity Pill -->
-        <div style="margin: 0 auto; margin-top:1.5rem; padding:0.6rem 2.5rem; border-radius:30px; background:rgba(0,255,102,0.1); border:1px solid rgba(0,255,102,0.4); display: inline-block;">
-          <p style="color:#00ff66; font-size:1.1rem; margin:0; font-weight:800;">Valid for: <span id="validity-timer">01:00</span></p>
-        </div>
-
-        <!-- Expanded Accent Divider (Full-Width boundary) -->
-        <div id="proximity-dist-label" style="margin-top: 3.5rem; color: #ffaa00; font-size: 1rem; font-weight: 600; border-top: 2px solid rgba(255,170,0,0.2); padding-top: 1.5rem; width: 100%;">
-           📍 Distance: <span style="color:#fff;">${geoContext.dist || '??'} km</span> from <b style="text-decoration: underline;">${geoContext.stadium || 'Target Stadium'}</b>
-        </div>
+      <div class="qr-payload-container" style="width: 100%;" id="qr-zone">
+        ${isOutsideLimit ? `
+          <div style="padding:2rem; background:rgba(255,0,60,0.07); border:1px solid #ff003c40; border-radius:24px; text-align:center;">
+            <p style="color:#ff003c; font-size:1.3rem; font-weight:900; margin:0 0 0.8rem;">🚫 ENTRY LOCKED</p>
+            <p style="color:rgba(255,255,255,0.8); font-size:1rem; line-height:1.5;">You are <b style="color:#fff; font-size:1.2rem;">${distDisplay}</b> away from venue.<br>
+            <span style="color:#ffaa00; font-size:0.85rem;">Move within 2 km to activate.</span></p>
+          </div>
+        ` : qrZoneHTML}
       </div>
+
+      <!-- Distance Info (Always shown as per summary) -->
+      <div id="proximity-dist-label" style="margin-top: 3.5rem; color: #ffaa00; font-size: 1rem; font-weight: 600; border-top: 1px solid rgba(255,170,0,0.2); padding-top: 1.5rem; width: 100%;">
+         📍 Distance: <span style="color:#fff;">${distDisplay}</span> to <b style="text-decoration: underline;">${stadium}</b>
+      </div>
+      <p style="color:rgba(255,255,255,0.4); font-size:0.75rem; margin-top:0.4rem;">Nearest Gate: <span style="color:#fff;">Gate A</span></p>
+
+      <!-- SYSTEM BRAIN INTEGRATION -->
+      ${renderSystemBrainWidget({ distance: distKm })}
 
       <button class="btn-primary" id="reset-entry-btn" style="margin-top:2.5rem; background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); color: #888; font-size: 0.75rem;">Reset Demo State</button>
     </div>
   `;
 
-  // === Inject initial QR ===
-  const injectQR = () => {
-    const el = document.getElementById('live-qr-pattern');
-    if (el) el.innerHTML = generateQRSVG(qrSeed);
-  };
-  injectQR();
+  // === Inject QR only if conditions met ===
+  if (canSeeQR) {
+    const injectQR = () => {
+      const el = document.getElementById('live-qr-pattern');
+      if (el) el.innerHTML = generateQRSVG(qrSeed);
+    };
+    injectQR();
 
-  // QR rotation every 3 seconds
-  let countdown = 3;
-  qrRotateInterval = setInterval(() => {
-    countdown--;
-    const label = document.getElementById('qr-refresh-label');
-    if (!label) { clearInterval(qrRotateInterval); return; }
-    if (countdown <= 0) {
-      countdown = 3;
-      qrSeed = Date.now(); // New seed = visually new QR
-      injectQR();
-    }
-    label.textContent = `Refreshing in ${countdown}s`;
-  }, 1000);
+    // QR rotation every 3 seconds
+    let countdown = 3;
+    qrRotateInterval = setInterval(() => {
+      countdown--;
+      const label = document.getElementById('qr-refresh-label');
+      if (!label) { clearInterval(qrRotateInterval); return; }
+      if (countdown <= 0) {
+        countdown = 3;
+        qrSeed = Date.now();
+        injectQR();
+      }
+      label.textContent = `Refreshing in ${countdown}s`;
+    }, 1000);
 
-  // Validity countdown
-  validityInterval = setInterval(() => {
-    const remaining = Math.max(0, Math.floor((validUntil - Date.now()) / 1000));
-    const vEl = document.getElementById('validity-timer');
-    if (!vEl) { clearInterval(validityInterval); clearInterval(qrRotateInterval); return; }
-    const vm = Math.floor(remaining / 60);
-    const vs = remaining % 60;
-    vEl.textContent = `${String(vm).padStart(2,'0')}:${String(vs).padStart(2,'0')}`;
-    if (remaining <= 0) {
-      clearInterval(validityInterval);
-      clearInterval(qrRotateInterval);
-      renderExpiredPass(container); // === LATE PENALTY ===
-    }
-  }, 1000);
+    // Validity countdown
+    validityInterval = setInterval(() => {
+      const remaining = Math.max(0, Math.floor((validUntil - Date.now()) / 1000));
+      const vEl = document.getElementById('validity-timer');
+      if (!vEl) { clearInterval(validityInterval); clearInterval(qrRotateInterval); return; }
+      const vm = Math.floor(remaining / 60);
+      const vs = remaining % 60;
+      vEl.textContent = `${String(vm).padStart(2,'0')}:${String(vs).padStart(2,'0')}`;
+      if (remaining <= 0) {
+        clearInterval(validityInterval);
+        clearInterval(qrRotateInterval);
+        renderExpiredPass(container);
+      }
+    }, 1000);
+  }
+
+  if (isGuest()) bindGuestUpgradeBtn();
 
   document.getElementById('reset-entry-btn').addEventListener('click', () => {
     clearInterval(qrRotateInterval);
     clearInterval(validityInterval);
     mockEntryState.bookedSlot = null;
     mockEntryState.unlockTime = 0;
+    mockEntryState.lockedLocation = null;
+    mockEntryState.userDistance = null;
+    localStorage.removeItem('flux_target_stadium');
+    saveEntryState();
     renderEntryModule();
   });
 }
@@ -1739,115 +1983,201 @@ function renderExpiredPass(container) {
   });
 }
 
-function renderMapModule() {
+async function renderMapModule() {
   if (!authGuard()) return;
 
+  const { loadGoogleMaps, initDashboardMap } = await import('./src/services/mapService.js');
+  const google = await loadGoogleMaps();
+  const { selectedLocationName, selectedLocation } = getLocationState();
+
   const content = `
-    <div class="main-feed" style="padding-top: 10px; padding-bottom: 100px;">
-      <div class="promo-card" style="border-color: #00ff66; background: rgba(0, 255, 102, 0.05); padding: 1.5rem; margin-bottom: 2rem;">
+    <div class="main-feed animated" style="padding-top: 10px; padding-bottom: 100px;">
+      <div class="promo-card" style="border-color: #00ff66; background: rgba(0, 255, 102, 0.05); padding: 1.5rem; margin-bottom: 1.5rem;">
         <h2 style="color: #00ff66; margin-bottom: 0.5rem; font-size: 1.2rem;">STADIUM NAVIGATOR</h2>
         <p style="color: var(--text-muted); font-size: 0.85rem; line-height: 1.4;">
-          Synchronizing with <b>Google Maps Platform</b>. Search for a stadium to initialize the Proximity Protocol.
+          Detailed Frequency Analysis. <b>Tap Map</b> or <b>Search</b> to lock target location.
         </p>
       </div>
 
-      <div style="width: 100%; height: 500px; min-height: 500px; flex-shrink: 0; background: #000; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); position: relative; overflow: hidden; margin-bottom: 2.5rem;">
-        <!-- Search UI Parent Container (Protected from squashing) -->
-        <div style="position: absolute; top: 0; left: 0; right: 0; height: 120px; z-index: 10; display: flex; align-items: center; padding: 0 1.5rem; background: linear-gradient(to bottom, rgba(10,10,12,0.9), transparent); gap: 12px;">
-          <input type="text" id="map-search-input" placeholder="Search Stadium Frequency (Press Enter)..." 
-                 style="flex: 1; height: 60px; min-height: 60px; flex-shrink: 0; background: #0a0a0c; border: 1px solid var(--accent); color: #fff; padding: 0 1.5rem; border-radius: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); outline: none; font-size: 1rem;">
-          <button id="external-maps-btn" title="Launch External Search" style="flex-shrink: 0; background: var(--accent); border: none; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 15px rgba(0,255,102,0.3);">
-             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>
+      <!-- MAP FRAME -->
+      <div id="map-frame-container" style="width: 100%; height: 500px; min-height: 500px; background: #000; border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.1); position: relative; overflow: hidden; margin-bottom: 2rem; box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
+        
+        <!-- PREMIUM UI OVERLAY (From Screenshot) -->
+        <div style="position: absolute; top: 20px; left: 15px; right: 15px; z-index: 100; display: flex; align-items: center; gap: 12px;">
+          <div style="flex: 1; position: relative;">
+            <input type="text" id="map-search-input" placeholder="Search Stadium Frequency (Press Enter)..." 
+                   value="${selectedLocationName || ''}"
+                   style="width: 100%; height: 52px; background: rgba(10, 10, 10, 0.9); border: 2px solid #00ff66; color: #fff; padding: 0 1.5rem; border-radius: 30px; outline: none; font-size: 0.95rem; font-weight: 500; backdrop-filter: blur(10px); box-shadow: 0 4px 20px rgba(0,0,0,0.8);">
+          </div>
+          <button id="external-maps-btn" title="Open in Google Maps" style="width: 52px; height: 52px; background: #00ff66; border: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 0 15px rgba(0,255,102,0.4); flex-shrink: 0;">
+             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>
           </button>
         </div>
-        
-        <iframe 
-          id="map-iframe"
-          width="100%" 
-          height="100%" 
-          frameborder="0" 
-          style="border:0; filter: invert(90%) hue-rotate(180deg) brightness(0.9); padding-top: 100px;" 
-          src="https://www.google.com/maps/embed/v1/search?key=${(() => { const k = import.meta.env.VITE_GOOGLE_MAPS_KEY; return (k && k.trim() !== '') ? k : 'AIzaSyA3oxIok5adpJPXg2qGBdYIcHWCINyO_dc'; })()}&q=stadium+near+London"
-          allowfullscreen>
-        </iframe>
+
+        <!-- THE DETAILED MAP CANVAS -->
+        <div id="map-canvas" style="width: 100%; height: 100%;"></div>
+
+        <!-- STATUS TOAST -->
+        <div id="map-status-overlay" style="position: absolute; bottom: 20px; left: 15px; right: 15px; z-index: 100; background: rgba(0,255,102,0.1); border: 1px solid #00ff6640; border-radius: 30px; padding: 8px 15px; display: none; backdrop-filter: blur(8px); text-align: center;">
+           <p id="map-status-text" style="color: #00ff66; font-size: 0.7rem; margin: 0; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em;"></p>
+        </div>
       </div>
 
-      <div style="text-align: center; margin-bottom: 3rem;">
-        <button class="btn-primary" id="confirm-stadium-btn" style="background: var(--accent); color: #000; font-weight: 800; padding: 1.2rem 3rem; border-radius: 50px; box-shadow: 0 0 40px rgba(0,255,102,0.3); width: 100%; border: none; cursor: pointer; font-size: 1rem; letter-spacing: 0.1em; text-transform: uppercase;">
+      <div style="text-align: center; margin-bottom: 2rem;">
+        <button class="btn-primary" id="confirm-stadium-btn" style="background: #00ff66; color: #000; font-weight: 900; padding: 1.2rem 3rem; border-radius: 50px; width: 100%; border: none; cursor: pointer; box-shadow: 0 0 30px rgba(0, 255, 102, 0.4);">
             LOCK STADIUM FREQUENCY
         </button>
       </div>
-
-      <div class="promo-card" style="text-align: left; padding: 1.2rem; border-color: rgba(255,255,255,0.1); background: rgba(255,255,255,0.02); line-height: 1.6;">
-        <p style="color: var(--accent); font-weight: 700; font-size: 0.75rem; text-transform: uppercase; margin: 0 0 8px 0;">📡 Proximity Protocol Active</p>
-        <p style="color: rgba(255,255,255,0.6); font-size: 0.8rem; margin: 0;">
-           Your biometric pass will only unlock upon physical arrival within 500m of this location. Initialization confirms your target gate.
-        </p>
-      </div>
-
-      <div style="height: 100px;"></div>
     </div>
   `;
 
   mountDashboardModule(content, 1, 'MAPS ENGINE');
 
-  const input = document.getElementById('map-search-input');
-  const iframe = document.getElementById('map-iframe');
+  // Initialize Map
+  const initialCenter = selectedLocation && selectedLocation.lat ? selectedLocation : { lat: 51.5074, lng: -0.1278 };
+  const map = await initDashboardMap('map-canvas', initialCenter.lat, initialCenter.lng);
   
-  input?.addEventListener('keyup', (e) => {
-    if (e.key === 'Enter') {
-      const query = input.value.trim();
-      const apiKey =
-        import.meta.env.VITE_GOOGLE_MAPS_KEY &&
-        import.meta.env.VITE_GOOGLE_MAPS_KEY.trim() !== ''
-          ? import.meta.env.VITE_GOOGLE_MAPS_KEY
-          : 'AIzaSyA3oxIok5adpJPXg2qGBdYIcHWCINyO_dc';
-      if (import.meta.env.DEV) {
-        console.log('FINAL API KEY (renderMapModule):', apiKey ? '[key loaded]' : '[EMPTY - fallback active]');
-      }
-      if (query) {
-        iframe.src = `https://www.google.com/maps/embed/v1/search?key=${apiKey}&q=${encodeURIComponent(query)}`;
-        logFirebaseEvent('stadium_search', { query });
-      }
+  // Custom Marker
+  let marker = new google.maps.Marker({
+    position: initialCenter,
+    map: map,
+    icon: {
+      path: google.maps.SymbolPath.CIRCLE,
+      scale: 12,
+      fillColor: "#00ff66",
+      fillOpacity: 1,
+      strokeColor: "#ffffff",
+      strokeWeight: 2,
+    },
+    title: selectedLocationName || "Pinned Location"
+  });
+
+  const statusOverlay = document.getElementById('map-status-overlay');
+  const statusText = document.getElementById('map-status-text');
+  const searchInput = document.getElementById('map-search-input');
+  const confirmBtn = document.getElementById('confirm-stadium-btn');
+
+  const updateSelection = async (lat, lng, name) => {
+    // ⚡ INSTANT SYNC: Update pinned location and calculate distance first
+    setPinnedLocation(lat, lng);
+    calculateDistance();
+    
+    marker.setPosition({ lat, lng });
+    if (navigator.vibrate) navigator.vibrate(30);
+
+    // 🌐 ASYNC RESOLUTION: Resolve address in background
+    if (!name) {
+      statusText.innerText = "Resolving Address...";
+      statusOverlay.style.display = "block";
+      const resolvedName = await resolveLocationName(lat, lng);
+      searchInput.value = resolvedName;
+      statusText.innerText = `Frequency pinned: ${resolvedName}`;
+    } else {
+      searchInput.value = name;
+      statusText.innerText = `Frequency pinned: ${name}`;
+      statusOverlay.style.display = "block";
+    }
+  };
+
+  // 🖱️ PHYSICAL MAP CLICK HANDLER
+  map.addListener('click', async (e) => {
+    const lat = e.latLng.lat();
+    const lng = e.latLng.lng();
+    await updateSelection(lat, lng);
+  });
+
+  // 🔍 ACTIVATE GLOBAL SEARCH ENGINE (Highly resilient SearchBox)
+  const searchBox = new google.maps.places.SearchBox(searchInput);
+
+  // Discovery Marker (Temporary)
+  let searchMarker = new google.maps.Marker({
+    map: map,
+    visible: false,
+    icon: {
+      path: google.maps.SymbolPath.CIRCLE,
+      scale: 20,
+      fillColor: "#00e5ff",
+      fillOpacity: 0.1,
+      strokeColor: "#00e5ff",
+      strokeWeight: 2,
     }
   });
 
-  document.getElementById('external-maps-btn')?.addEventListener('click', () => {
-    const query = (input?.value.trim() || 'stadium').replace(/\\s+/g, '+');
-    window.open(`https://www.google.com/maps/search/${query}`, '_blank');
-    logFirebaseEvent('external_maps_launched', { query });
+  const handleSearchResults = (results, query) => {
+    if ((!results || results.length === 0) && query) {
+      // 🌋 GLOBAL FALLBACK: Trigger Geocoder if SearchBox fails
+      const geocoder = new google.maps.Geocoder();
+      geocoder.geocode({ address: query }, (geoResults, status) => {
+        if (status === 'OK' && geoResults[0]) {
+          navigateMapTo(geoResults[0]);
+        } else {
+          statusText.innerText = "Location Not Found on Globe";
+          statusOverlay.style.display = "block";
+        }
+      });
+      return;
+    }
+
+    if (results && results[0]) {
+       navigateMapTo(results[0]);
+    }
+  };
+
+  const navigateMapTo = (place) => {
+    const loc = place.geometry.location;
+    
+    // ⚡ WORLD GLOBE NAVIGATION
+    map.setCenter(loc);
+    map.setZoom(17);
+    
+    searchMarker.setPosition(loc);
+    searchMarker.setVisible(true);
+    
+    statusText.innerText = `Navigation: ${place.name || place.formatted_address}. Ready to Pin.`;
+    statusOverlay.style.display = "block";
+    
+    if (navigator.vibrate) navigator.vibrate(50);
+  };
+
+  searchBox.addListener("places_changed", () => {
+    const places = searchBox.getPlaces();
+    handleSearchResults(places, searchInput.value.trim());
   });
 
-  document.getElementById('confirm-stadium-btn')?.addEventListener('click', () => {
-    const selectedName = input?.value.trim() || 'Detected Stadium';
+  // 🔍 MANUAL SEARCH HANDLER (As per user request for "shortcut typing")
+  const performSearch = () => {
+    const query = searchInput.value.trim();
+    if (!query) return;
     
-    // Try to find a match in STADIUMS array, otherwise default or create dynamic
-    const match = STADIUMS.find(s => s.name.toLowerCase().includes(selectedName.toLowerCase()));
-    
-    mockEntryState.lockedLocation = match ? { ...match } : {
-        name: selectedName,
-        lat: 40.7128, // Default fallback
-        lng: -74.0060,
-        isCustom: true
-    };
-
-    localStorage.setItem('flux_target_stadium', mockEntryState.lockedLocation.name);
-    saveEntryState();
-    
-    logFirebaseEvent('stadium_frequency_locked', { 
-        location: mockEntryState.lockedLocation.name,
-        lat: mockEntryState.lockedLocation.lat,
-        lng: mockEntryState.lockedLocation.lng
+    // Direct attempt through Global Geocoder for manual Enter shortcut
+    const geocoder = new google.maps.Geocoder();
+    geocoder.geocode({ address: query }, (results, status) => {
+      if (status === 'OK') {
+        handleSearchResults(results);
+      } else {
+        // Full deep-search fallback
+        handleSearchResults([], query);
+      }
     });
-    
-    const btn = document.getElementById('confirm-stadium-btn');
-    btn.innerHTML = "FREQUENCY LOCKED ✓";
-    btn.style.background = "#fff";
-    btn.disabled = true;
+  };
 
-    if (navigator.vibrate) navigator.vibrate([40, 60, 40]);
+  searchInput?.addEventListener('keydown', (e) => { 
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      performSearch();
+    }
+  });
+  
+  document.getElementById('external-maps-btn')?.addEventListener('click', () => {
+    const query = (searchInput?.value.trim() || 'stadium').replace(/\s+/g, '+');
+    window.open(`https://www.google.com/maps/search/${query}`, '_blank');
+  });
 
-    setTimeout(renderEntryModule, 1000);
+  confirmBtn?.addEventListener('click', () => {
+    confirmBtn.innerHTML = "FREQUENCY LOCKED ✓";
+    confirmBtn.style.background = "#fff";
+    confirmBtn.disabled = true;
+    setTimeout(renderEntryModule, 800);
   });
 }
 
@@ -2067,6 +2397,55 @@ function renderExitModule() {
           </button>
         </div>
 
+        <!-- EXIT INTELLIGENCE DASHBOARD -->
+        <div style="margin-bottom: 2rem;">
+          <p style="color:var(--text-muted); font-size:0.65rem; text-transform:uppercase; letter-spacing:0.12em; margin:0 0 0.8rem 0;">Exiting Intelligence Engine</p>
+          
+          <div style="display: grid; grid-template-columns: 1fr; gap: 1rem;">
+            <!-- Priority User -->
+            <div style="background: rgba(255, 0, 60, 0.05); border: 1px solid rgba(255, 0, 60, 0.2); border-radius: 16px; padding: 1.2rem; display: flex; align-items: center; gap: 1rem;">
+              <div style="font-size: 1.5rem;">✈️</div>
+              <div style="flex: 1;">
+                <p style="color: #ff003c; font-size: 0.65rem; font-weight: 800; text-transform: uppercase; margin: 0 0 4px 0;">Priority Departure</p>
+                <p style="color: #fff; font-weight: 700; margin: 0;">Decision: <span style="color: #ff003c;">Urgency Detected</span></p>
+                <p style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin: 4px 0 0 0;">Action: <b>Open Gate Early</b></p>
+              </div>
+            </div>
+
+            <!-- Flexible User -->
+            <div style="background: rgba(255, 170, 0, 0.05); border: 1px solid rgba(255, 170, 0, 0.2); border-radius: 16px; padding: 1.2rem; display: flex; align-items: center; gap: 1rem;">
+              <div style="font-size: 1.5rem;">🚗</div>
+              <div style="flex: 1;">
+                <p style="color: #ffaa00; font-size: 0.65rem; font-weight: 800; text-transform: uppercase; margin: 0 0 4px 0;">Flexible Departure</p>
+                <div style="display: flex; gap: 1.5rem; margin-bottom: 4px;">
+                  <div>
+                    <p style="color: rgba(255,255,255,0.4); font-size: 0.6rem; margin: 0;">Cab Price Now</p>
+                    <p style="color: #fff; font-weight: 700; margin: 0;">$50</p>
+                  </div>
+                  <div>
+                    <p style="color: rgba(255,255,255,0.4); font-size: 0.6rem; margin: 0;">After Wait</p>
+                    <p style="color: #00ff66; font-weight: 700; margin: 0;">$30</p>
+                  </div>
+                </div>
+                <p style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin: 0;">Action: <b style="color: #ffaa00;">Wait and Save</b></p>
+              </div>
+            </div>
+
+            <!-- Relaxed User -->
+            <div style="background: rgba(132, 0, 255, 0.05); border: 1px solid rgba(132, 0, 255, 0.2); border-radius: 16px; padding: 1.2rem; display: flex; align-items: center; gap: 1rem;">
+              <div style="font-size: 1.5rem;">🎬</div>
+              <div style="flex: 1;">
+                <p style="color: #8400ff; font-size: 0.65rem; font-weight: 800; text-transform: uppercase; margin: 0 0 4px 0;">Relaxed Departure</p>
+                <div style="display: flex; gap: 1rem; margin-bottom: 4px;">
+                  <span style="color: #fff; font-size: 0.8rem; font-weight: 600;">✅ Live Stream Available</span>
+                  <span style="color: #fff; font-size: 0.8rem; font-weight: 600;">✅ Discount Available</span>
+                </div>
+                <p style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin: 0;">Action: <b style="color: #8400ff;">Stay and Enjoy</b></p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Crowd Wave Meter -->
         <div class="promo-card" style="border-color:rgba(255,255,255,0.08);">
           <p style="color:var(--text-muted); font-size:0.65rem; text-transform:uppercase; letter-spacing:0.1em; margin:0 0 0.8rem 0;">Live Crowd Wave Status</p>
@@ -2217,7 +2596,9 @@ function renderExitModule() {
 
     // Locker Room Trigger — GPS proximity check for live streaming
     document.getElementById('locker-access-trigger')?.addEventListener('click', () => {
-      const stadium = mockEntryState.lockedLocation || STADIUMS[0];
+      const stadium = mockEntryState.lockedLocation;
+      if (!stadium || !stadium.lat || !stadium.lng) return;
+      
       if (!navigator.geolocation) {
         renderExclusiveContent(); // fallback if GPS unavailable
         return;
@@ -2674,10 +3055,13 @@ function initP5Background() {
 // --- BOOTSTRAPPER ---
 bgShouldBeWaking = false;
 
+// RESET ALL STATE ON APP LOAD (STRICT SESSION HARDEN)
+resetLocationState();
+fetchUserLocation().catch(() => console.log("Initial geolocation failed or denied."));
+
 initP5Background();
 renderAuthPage();
 
-// Final failsafe wake attempt
 if (bgShouldBeWaking) {
   p5Instance?.wake();
 }
